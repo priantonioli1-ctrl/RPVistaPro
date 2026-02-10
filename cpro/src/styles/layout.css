@@ -1,0 +1,219 @@
+/* Layout profissional – sidebar + header (tema escuro) */
+
+.layout-wrap {
+  --sidebar-width: 260px;
+  --header-height: 100px;
+  --logo-row-height: 100px;
+  --sidebar-bg: #0d1117;
+  --sidebar-border: rgba(255,255,255,0.06);
+  --sidebar-text: #e6edf3;
+  --sidebar-text-muted: #8b949e;
+  --sidebar-hover: rgba(255,255,255,0.06);
+  --sidebar-active: rgba(88,166,255,0.15);
+  --sidebar-active-border: #58a6ff;
+  --main-bg: #0f1419;
+  --header-bg: #161b22;
+  --header-border: rgba(255,255,255,0.08);
+  --accent: #58a6ff;
+  --accent-hover: #79b8ff;
+  font-family: "Inter", "Segoe UI", system-ui, sans-serif;
+  min-height: 100vh;
+  display: flex;
+  background: var(--main-bg);
+  color: var(--sidebar-text);
+}
+
+.layout-sidebar {
+  width: var(--sidebar-width);
+  min-width: var(--sidebar-width);
+  background: var(--sidebar-bg);
+  border-right: 1px solid var(--sidebar-border);
+  display: flex;
+  flex-direction: column;
+  position: fixed;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  z-index: 100;
+}
+
+/* Logo centralizada na barra (mesma altura que o header da área principal) */
+.layout-sidebar-logo {
+  height: var(--logo-row-height);
+  min-height: var(--logo-row-height);
+  padding: 0;
+  border-bottom: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.layout-sidebar-logo img {
+  width: 100%;
+  max-width: 100%;
+  height: 140px;
+  max-height: 140px;
+  display: block;
+  object-fit: contain;
+}
+
+.layout-sidebar-nav {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px 0;
+}
+
+.layout-nav-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 11px 24px;
+  color: var(--sidebar-text);
+  text-decoration: none;
+  font-size: 1rem;
+  font-weight: 500;
+  border: none;
+  background: none;
+  width: 100%;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+  border-left: 3px solid transparent;
+}
+
+.layout-nav-item:hover {
+  background: var(--sidebar-hover);
+  color: #fff;
+}
+
+.layout-nav-item.active {
+  background: var(--sidebar-active);
+  color: var(--accent);
+  border-left-color: var(--sidebar-active-border);
+}
+
+.layout-nav-item svg {
+  flex-shrink: 0;
+  opacity: 0.85;
+}
+
+.layout-nav-section {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--sidebar-text-muted);
+  padding: 18px 24px 8px;
+}
+
+.layout-sidebar-footer {
+  padding: 16px 24px;
+  border-top: 1px solid var(--sidebar-border);
+}
+
+.layout-sidebar-footer .layout-nav-item {
+  color: var(--sidebar-text-muted);
+}
+
+.layout-sidebar-footer .layout-nav-item:hover {
+  color: #f85149;
+  background: rgba(248,81,73,0.1);
+}
+
+.layout-main {
+  flex: 1;
+  margin-left: var(--sidebar-width);
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+/* Header: título centralizado, usuário à direita */
+.layout-header {
+  height: var(--header-height);
+  min-height: var(--header-height);
+  background: var(--header-bg);
+  border-bottom: 1px solid var(--header-border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 28px;
+  position: sticky;
+  top: 0;
+  z-index: 50;
+}
+
+.layout-header-spacer {
+  flex: 1;
+  min-width: 0;
+}
+
+.layout-header-title {
+  flex: 0 0 auto;
+  font-size: 2.25rem;
+  font-weight: 700;
+  color: #fff;
+  letter-spacing: 0.02em;
+  line-height: 1.2;
+  text-align: center;
+  margin: 0;
+}
+
+.layout-header-user {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  font-size: 1rem;
+  color: var(--sidebar-text-muted);
+  min-width: 0;
+}
+
+.layout-header-user strong {
+  color: var(--sidebar-text);
+  font-size: 1rem;
+}
+
+.layout-content {
+  flex: 1;
+  padding: 28px 32px 48px;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.layout-content .content-card {
+  background: var(--header-bg);
+  border: 1px solid var(--header-border);
+  border-radius: 12px;
+  padding: 24px;
+  margin-bottom: 24px;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.2);
+}
+
+/* Área de conteúdo padrão (mesmo espaço para todas as páginas, ex.: Meu Catálogo, Perfil) */
+.layout-content-inner {
+  max-width: 1200px;
+  width: 100%;
+  margin: 0 auto;
+  color: var(--sidebar-text);
+}
+
+/* Campos sobre fundo branco/claro: texto e placeholder sempre legíveis (preto/cinza escuro) */
+.campo-fundo-claro {
+  color: #1a1a1a;
+}
+.campo-fundo-claro::placeholder {
+  color: #555;
+  opacity: 0.9;
+}
+select.campo-fundo-claro {
+  color: #1a1a1a;
+}
+select.campo-fundo-claro option {
+  background: #fff;
+  color: #1a1a1a;
+}

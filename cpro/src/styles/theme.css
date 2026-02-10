@@ -1,0 +1,40 @@
+:root{
+  /* Cores da marca — mude depois para as suas */
+  --brand: #5B6CFF;
+  --brand-600: #4c5ae0;
+  --brand-700: #3b47b8;
+
+  /* Neutros elegantes */
+  --bg: #0f1115;
+  --panel: #171a21;
+  --panel-2: #1d212b;
+  --text: #e9ecf1;
+  --muted: #9aa3b2;
+  --border: #2a2f3a;
+
+  /* Espaçamento e raio */
+  --space-1: .25rem;
+  --space-2: .5rem;
+  --space-3: .75rem;
+  --space-4: 1rem;
+  --space-6: 1.5rem;
+  --space-8: 2rem;
+  --radius: 14px;
+
+  /* Sombras: suaves e profissionais */
+  --shadow-1: 0 1px 2px rgba(0,0,0,.25), 0 8px 24px rgba(0,0,0,.28);
+  --shadow-2: 0 1px 3px rgba(0,0,0,.28), 0 12px 32px rgba(0,0,0,.35);
+}
+
+@media (prefers-color-scheme: light){
+  :root{
+    --bg:#f7f8fb;
+    --panel:#ffffff;
+    --panel-2:#f4f6fb;
+    --text:#111319;
+    --muted:#596076;
+    --border:#e7eaf1;
+    --shadow-1: 0 1px 2px rgba(10, 13, 20, .06), 0 8px 24px rgba(10,13,20,.08);
+    --shadow-2: 0 1px 3px rgba(10, 13, 20, .08), 0 12px 32px rgba(10,13,20,.12);
+  }
+}

@@ -1,0 +1,16 @@
+# Não subir senhas e dados sensíveis
+.env
+.env.local
+.env.*.local
+
+# Dependências
+node_modules/
+cpro/node_modules/
+backend-rpvistapro/node_modules/
+
+# Build
+cpro/build/
+
+# Sistema e IDE
+.DS_Store
+*.log
