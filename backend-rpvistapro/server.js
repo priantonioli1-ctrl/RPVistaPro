@@ -66,8 +66,8 @@ mongoose
   .connect(MONGODB_URI, { dbName: "meubanco" })
   .then(() => {
     console.log("✅ MongoDB conectado com sucesso");
-    app.listen(PORT, () => {
-      console.log(`🚀 Servidor rodando em: http://localhost:${PORT}`);
+    app.listen(Number(PORT), "0.0.0.0", () => {
+      console.log(`🚀 Servidor rodando na porta ${PORT}`);
     });
   })
   .catch((err) => {

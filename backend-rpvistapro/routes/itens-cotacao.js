@@ -1,6 +1,6 @@
 // backend/routes/itens-cotacao.js
 import express from "express";
-import ItemCotacao from "../models/item-cotacao.js"; // ✅ confirme o caminho correto
+import ItemCotacao from "../models/Item-cotacao.js";
 
 const router = express.Router();
 
