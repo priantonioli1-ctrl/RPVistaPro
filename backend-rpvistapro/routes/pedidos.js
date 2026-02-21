@@ -4,6 +4,7 @@ import mongoose from "mongoose";
 import Pedido from "../models/Pedido.js";
 import Estoque from "../models/Estoque.js";
 import Usuario from "../models/Usuario.js";
+import { enviarNotificacaoNovoPedido, enviarNotificacaoPedidoAprovado } from "../services/emailService.js";
 
 const router = express.Router();
 
@@ -52,6 +53,28 @@ router.post("/", async (req, res) => {
       status: (status || "Enviado").toString().trim(),
     });
     await doc.save();
+
+    // Enviar notificação por email para o fornecedor
+    try {
+      const fornecedor = await Usuario.findOne({ 
+        $or: [
+          { nome: fornecedorNome },
+          { _id: fornecedorNome }
+        ],
+        tipo: "fornecedor"
+      }).lean();
+
+      if (fornecedor && fornecedor.email && fornecedor.emailVerificado) {
+        await enviarNotificacaoNovoPedido(
+          fornecedor.email,
+          fornecedor.nome,
+          doc.toObject()
+        );
+      }
+    } catch (emailError) {
+      console.error("⚠️ Erro ao enviar notificação de novo pedido (pedido criado mesmo assim):", emailError);
+    }
+
     res.status(201).json(doc);
   } catch (error) {
     console.error("❌ Erro ao salvar pedido:", error);
@@ -234,6 +257,20 @@ router.put("/:id", async (req, res) => {
         }
         await estoque.save();
         console.log(`📦 Em trânsito atualizado para comprador ${compradorId} (pedido ${pedido._id})`);
+
+        // Enviar notificação por email para o comprador
+        try {
+          const comprador = await Usuario.findById(compradorId).lean();
+          if (comprador && comprador.email && comprador.emailVerificado) {
+            await enviarNotificacaoPedidoAprovado(
+              comprador.email,
+              comprador.nome,
+              pedido
+            );
+          }
+        } catch (emailError) {
+          console.error("⚠️ Erro ao enviar notificação de pedido aprovado (pedido atualizado mesmo assim):", emailError);
+        }
       }
     }
 

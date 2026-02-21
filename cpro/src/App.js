@@ -4,6 +4,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-d
 import Login from "./pages/Login";
 import Cadastro from "./pages/Cadastro";
 import RecuperarSenha from "./pages/RecuperarSenha";
+import VerificarEmail from "./pages/VerificarEmail";
 import AppLayout from "./components/AppLayout";
 
 import CadastroFuncionarios from "./pages/Comprador/CadastroFuncionarios";
@@ -37,6 +38,7 @@ function App() {
         <Route path="/" element={<Login />} />
         <Route path="/cadastro" element={<Cadastro />} />
         <Route path="/recuperar-senha" element={<RecuperarSenha />} />
+        <Route path="/verificar-email" element={<VerificarEmail />} />
         <Route path="/requisicao-link/:token" element={<RequisicaoPorLink />} />
 
         <Route element={<AppLayout />}>

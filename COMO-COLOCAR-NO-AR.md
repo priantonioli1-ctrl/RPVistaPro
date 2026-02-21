@@ -9,10 +9,10 @@ Seu app tem **três partes**: banco (MongoDB), backend (Node/Express) e frontend
 | Parte      | Onde você usa hoje | Onde colocar na nuvem   |
 |-----------|--------------------|-------------------------|
 | Banco     | MongoDB local/Atlas| **MongoDB Atlas**       |
-| Backend   | `localhost:4001`   | **Render** ou Railway  |
-| Frontend  | `localhost:3000`   | **Vercel** ou Netlify  |
+| Backend   | `localhost:4001`   | **Render**              |
+| Frontend  | `localhost:3000`   | **AWS** (S3/Elastic Beanstalk) ou Vercel |
 
-Recomendação para começar: **MongoDB Atlas + Render (backend) + Vercel (frontend)**. Todos têm plano gratuito.
+Seu setup: **MongoDB Atlas + Render (backend) + AWS (frontend)**.
 
 ---
 
@@ -59,37 +59,50 @@ Deve retornar algo como: `{ "status": "API funcionando 🚀" }`.
 
 ---
 
-## 3. Frontend no ar (Vercel)
+## 3. Frontend no ar (AWS)
 
-1. Crie uma conta em [vercel.com](https://vercel.com).
-2. **Add New** → **Project** e importe o mesmo repositório do GitHub.
-3. Configure:
-   - **Root Directory:** `cpro` (pasta do React).
-   - **Framework Preset:** Create React App (ou Vercel detecta sozinho).
-   - **Build Command:** `npm run build`
-   - **Output Directory:** `build`
-4. Em **Environment Variables**, adicione:
-   - **Name:** `REACT_APP_API_URL`  
-   - **Value:** a URL do backend no Render (ex.: `https://backend-rpvistapro-xxxx.onrender.com`)  
-   **Sem barra no final.**
-5. Faça **Deploy**.  
-   A Vercel vai gerar uma URL do tipo:  
-   `https://cpro-xxxx.vercel.app`  
-   Essa é a URL do seu app para os usuários.
+O frontend React precisa ser **construído** com a URL do backend (Render). Senão, ele continua chamando `localhost` e não funciona na nuvem.
 
-Depois do primeiro deploy, qualquer push no repositório pode gerar um novo deploy automático (se você ativou essa opção).
+### 3.1 Build do frontend apontando para o Render
+
+Na pasta do projeto, **antes de subir para a AWS**, rode o build com a variável da API:
+
+```bash
+cd /Users/priscillaantonioligarcia/Desktop/Projetos/RPVistaPro/cpro
+REACT_APP_API_URL=https://rpvistapro.onrender.com npm run build
+```
+
+Isso gera a pasta `build/` com os arquivos estáticos já configurados para usar o backend no Render.  
+**Use sempre essa URL** (a do seu serviço no Render). Sem barra no final.
+
+### 3.2 Enviar o build para a AWS
+
+- Se você usa **S3**: faça upload do **conteúdo** da pasta `build/` (todos os arquivos e pastas de dentro) para o bucket configurado para hospedar o site (ex.: o bucket do Elastic Beanstalk ou um bucket estático).
+- Se você usa **Elastic Beanstalk**: envie a aplicação conforme o fluxo que você já usa (por exemplo, um zip com o conteúdo de `build/` ou o deploy via EB CLI).
+
+Sempre que mudar o código do frontend ou a URL do backend, rode de novo o comando acima e suba de novo o conteúdo para a AWS.
+
+### 3.3 (Opcional) Frontend na Vercel
+
+Se preferir usar Vercel no lugar da AWS:
+
+1. **Add New** → **Project** e importe o repositório do GitHub.
+2. **Root Directory:** `cpro`.
+3. **Environment Variables:** `REACT_APP_API_URL` = `https://rpvistapro.onrender.com` (sem barra no final).
+4. Deploy. A Vercel usa essa variável no build automaticamente.
 
 ---
 
 ## 4. Conferir se está tudo certo
 
-- **Frontend (Vercel):** abra a URL do projeto (ex.: `https://cpro-xxxx.vercel.app`).
+- **Backend (Render):** `https://rpvistapro.onrender.com` — deve responder (ex.: "API funcionando" ou JSON).
+- **Frontend (AWS):** abra a URL do seu app na AWS (S3/Elastic Beanstalk).
 - Faça login ou cadastro.  
-  Se o login/cadastro funcionar, o frontend está falando com o backend e o backend com o MongoDB Atlas.
+  Se o login/cadastro funcionar, o front está falando com o Render e o Render com o MongoDB Atlas.
 
 Se der erro de rede ou “não conecta”:
-- Confirme que `REACT_APP_API_URL` na Vercel é exatamente a URL do backend (Render), sem barra no final.
-- No Render, veja os **Logs** do serviço para erros de conexão com o MongoDB (por exemplo `MONGODB_URI` errada ou IP bloqueado no Atlas).
+- O build do frontend foi feito com `REACT_APP_API_URL=https://rpvistapro.onrender.com`? Se usou `localhost`, refaça o build com a URL do Render e suba de novo para a AWS.
+- No Render, veja **Logs** para erros de MongoDB (`MONGODB_URI`, IP bloqueado no Atlas).
 
 ---
 
@@ -118,10 +131,10 @@ Subir **só** a pasta do backend ou só do frontend também é possível, mas a�
 
 ## 6. Resumo rápido
 
-1. **MongoDB Atlas:** criar cluster, usuário, liberar IP e copiar a connection string.
-2. **Render:** novo Web Service apontando para a pasta `backend-rpvistapro`, variáveis `MONGODB_URI` e `PORT`, e pegar a URL do backend.
-3. **Vercel:** novo Project apontando para a pasta `cpro`, variável `REACT_APP_API_URL` = URL do Render, e fazer deploy.
-4. Acessar o app pela URL que a Vercel mostrar.
+1. **MongoDB Atlas:** cluster, usuário, Network Access (0.0.0.0/0), connection string no Render.
+2. **Render (backend):** Web Service em `backend-rpvistapro`, variáveis `MONGODB_URI` e `PORT`. URL: `https://rpvistapro.onrender.com`.
+3. **AWS (frontend):** na pasta `cpro`, rodar `REACT_APP_API_URL=https://rpvistapro.onrender.com npm run build` e enviar o conteúdo de `build/` para S3/Elastic Beanstalk.
+4. Acessar o app pela URL do frontend na AWS.
 
 ---
 
@@ -129,6 +142,6 @@ Subir **só** a pasta do backend ou só do frontend também é possível, mas a�
 
 - **Render (free):** o serviço “dorme” após um tempo sem acesso. A primeira requisição pode demorar alguns segundos; depois fica rápido.
 - **Senhas e .env:** nunca commite o arquivo `.env` no Git. Use sempre as variáveis de ambiente no painel do Render e da Vercel.
-- **CORS:** seu backend já usa `cors({ origin: "*" })`, então a API aceita requisições do domínio da Vercel sem mudança extra.
+- **CORS:** o backend usa `cors({ origin: "*" })`, então a API aceita requisições do domínio da AWS (e de qualquer origem) sem mudança extra.
 
-Se quiser, na próxima mensagem você pode dizer em qual etapa está (Atlas, Render ou Vercel) e eu te guio passo a passo nela.
+Se quiser, na próxima mensagem diga em qual etapa está (Atlas, Render ou AWS) e eu te guio passo a passo.

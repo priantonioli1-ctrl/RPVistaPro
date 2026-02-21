@@ -39,6 +39,58 @@ export default function requisicoesEstoqueRoutes(io) {
     }
   });
 
+  // 🔗 GET catálogo com estoque por token (categorias/seções + itens com quantidade disponível)
+  router.get("/catalogo-com-estoque/:token", async (req, res) => {
+    try {
+      const token = req.params.token;
+      let empresaId;
+      try {
+        empresaId = Buffer.from(token, "base64").toString("utf8");
+      } catch {
+        return res.status(400).json({ error: "Link inválido." });
+      }
+      if (!mongoose.Types.ObjectId.isValid(empresaId)) {
+        return res.status(400).json({ error: "Link inválido." });
+      }
+      const empresaObjId = new mongoose.Types.ObjectId(empresaId);
+
+      const [catalogo, estoque] = await Promise.all([
+        Catalogo.findOne({ empresa: empresaObjId }).lean(),
+        Estoque.findOne({ empresa: empresaObjId }).lean(),
+      ]);
+
+      const itensCatalogo = Array.isArray(catalogo?.catalogo) ? catalogo.catalogo : [];
+      const itensEstoque = Array.isArray(estoque?.itens) ? estoque.itens : [];
+
+      const mapaEstoque = new Map();
+      itensEstoque.forEach((i) => {
+        const chave = `${(i.nome || "").trim().toLowerCase()}::${(i.unidade || "un").trim().toLowerCase()}`;
+        mapaEstoque.set(chave, Number(i.quantidade) || 0);
+      });
+
+      const itens = itensCatalogo.map((item) => {
+        const nome = (item.nome || "").trim();
+        const unidade = (item.unidade || "").trim() || "un";
+        const chave = `${nome.toLowerCase()}::${unidade.toLowerCase()}`;
+        const quantidadeDisponivel = mapaEstoque.get(chave) ?? 0;
+        return {
+          secao: (item.secao || "").trim() || "Sem seção",
+          nome,
+          marca: (item.marca || "").trim(),
+          unidade,
+          quantidadeDisponivel,
+        };
+      });
+
+      const categorias = [...new Set(itens.map((i) => i.secao).filter(Boolean))].sort();
+
+      res.json({ categorias, itens });
+    } catch (err) {
+      console.error("❌ Erro ao buscar catálogo com estoque por link:", err);
+      res.status(500).json({ error: "Erro ao carregar catálogo." });
+    }
+  });
+
   // 🔗 GET catálogo por token (mantido para compatibilidade; preferir /estoque para requisição por link)
   router.get("/catalogo/:token", async (req, res) => {
     try {
@@ -63,7 +115,7 @@ export default function requisicoesEstoqueRoutes(io) {
   // 🔗 POST criar requisição por link (quantidade solicitada não pode superar o disponível em estoque)
   router.post("/por-link", async (req, res) => {
     try {
-      const { token, setorOrigem, itens } = req.body;
+      const { token, setorOrigem, funcionarioNome, observacoes, itens } = req.body;
       if (!token || !Array.isArray(itens) || itens.length === 0) {
         return res.status(400).json({ error: "Token e itens são obrigatórios." });
       }
@@ -107,9 +159,9 @@ export default function requisicoesEstoqueRoutes(io) {
         numero,
         empresa: empresaId,
         setorOrigem: setorOrigem || "Requisição por link",
-        criadoPor: "Requisição por link",
+        criadoPor: funcionarioNome || "Requisição por link",
         prioridade: "Normal",
-        observacoes: "",
+        observacoes: observacoes || "",
         itens: itensNorm,
         status: "Pendente",
       });

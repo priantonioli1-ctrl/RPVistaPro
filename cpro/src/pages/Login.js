@@ -44,6 +44,11 @@ export default function Login() {
         return;
       }
 
+      // Avisar se email não está verificado (mas não bloquear login)
+      if (data.emailNaoVerificado || !usuario.emailVerificado) {
+        alert("⚠️ Seu email ainda não foi verificado. Verifique sua caixa de entrada ou spam para ativar sua conta.");
+      }
+
       // Limpa qualquer sessão antiga
       sessionStorage.removeItem("usuario");
       sessionStorage.removeItem("token");
@@ -64,6 +69,7 @@ export default function Login() {
         tipo,
         cnpj: usuario.cnpj ?? null,
         email: email.trim().toLowerCase(),
+        emailVerificado: usuario.emailVerificado || false,
         ...(tipo === "comprador" ? { compradorId: usuario._id, empresa: usuario._id } : {}),
       };
 

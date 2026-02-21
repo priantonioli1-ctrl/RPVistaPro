@@ -7,11 +7,26 @@ const API_URL = process.env.REACT_APP_API_URL || "http://localhost:4001";
 const BORDER = "1px solid rgba(255,255,255,0.08)";
 const CARD_BG = "#161b22";
 
+function chaveItem(nome, unidade) {
+  return `${nome}::${unidade || "un"}`;
+}
+
 export default function SaidaMercadorias() {
   const [usuarioAtual, setUsuarioAtual] = useState(null);
   const [requisicoes, setRequisicoes] = useState([]);
   const [linkCopiado, setLinkCopiado] = useState(false);
   const navigate = useNavigate();
+
+  // Catálogo para confecção de requisição direto na página
+  const [catalogComEstoque, setCatalogComEstoque] = useState([]);
+  const [categorias, setCategorias] = useState([]);
+  const [categoriaSelecionada, setCategoriaSelecionada] = useState("");
+  const [quantidadesRequisicao, setQuantidadesRequisicao] = useState({});
+  const [solicitante, setSolicitante] = useState("");
+  const [setorRequisicao, setSetorRequisicao] = useState("");
+  const [observacoesRequisicao, setObservacoesRequisicao] = useState("");
+  const [loadingCatalog, setLoadingCatalog] = useState(false);
+  const [enviandoRequisicao, setEnviandoRequisicao] = useState(false);
 
   useEffect(() => {
     const usuario = sessionStorage.getItem("usuario");
@@ -24,6 +39,54 @@ export default function SaidaMercadorias() {
     setUsuarioAtual(dados);
     carregarRequisicoes(dados);
   }, [navigate]);
+
+  useEffect(() => {
+    if (!usuarioAtual) return;
+    const empresaId = usuarioAtual?.compradorId || (usuarioAtual?.tipo === "comprador" ? usuarioAtual?._id : null);
+    if (!empresaId) return;
+
+    setLoadingCatalog(true);
+    Promise.all([
+      fetch(`${API_URL}/api/catalogos/${empresaId}`).then((r) => r.json()),
+      fetch(`${API_URL}/api/estoque/${empresaId}`).then((r) => r.json()),
+    ])
+      .then(([dataCat, itensEstoque]) => {
+        const listaCat = Array.isArray(dataCat?.catalogo) ? dataCat.catalogo : [];
+        const itensEst = Array.isArray(itensEstoque) ? itensEstoque : (itensEstoque?.itens ? itensEstoque.itens : []);
+        const mapaEstoque = new Map();
+        itensEst.forEach((i) => {
+          const chave = `${(i.nome || "").trim().toLowerCase()}::${(i.unidade || "un").trim().toLowerCase()}`;
+          mapaEstoque.set(chave, Number(i.quantidade) || 0);
+        });
+        const itens = listaCat.map((item) => {
+          const nome = (item.nome || "").trim();
+          const unidade = (item.unidade || "").trim() || "un";
+          const chave = `${nome.toLowerCase()}::${unidade.toLowerCase()}`;
+          const quantidadeDisponivel = mapaEstoque.get(chave) ?? 0;
+          return {
+            secao: (item.secao || "").trim() || "Sem seção",
+            nome,
+            marca: (item.marca || "").trim(),
+            unidade,
+            quantidadeDisponivel,
+          };
+        });
+        setCatalogComEstoque(itens);
+        const cats = [...new Set(itens.map((i) => i.secao).filter(Boolean))].sort();
+        setCategorias(cats);
+        setCategoriaSelecionada((prev) => prev || cats[0] || "");
+        const iniciais = {};
+        itens.forEach((p) => {
+          iniciais[chaveItem(p.nome, p.unidade)] = "";
+        });
+        setQuantidadesRequisicao(iniciais);
+      })
+      .catch((err) => {
+        console.error("Erro ao carregar catálogo/estoque:", err);
+        Swal.fire("Aviso", "Não foi possível carregar o catálogo para requisição.", "warning");
+      })
+      .finally(() => setLoadingCatalog(false));
+  }, [usuarioAtual]);
 
   async function carregarRequisicoes(usuario) {
     try {
@@ -57,12 +120,91 @@ export default function SaidaMercadorias() {
       Swal.fire("Erro", "Não foi possível gerar o link.", "error");
       return;
     }
-    
+
     navigator.clipboard.writeText(link).then(() => {
       setLinkCopiado(true);
       Swal.fire("Link copiado!", "Envie este link para o funcionário que precisa solicitar produtos.", "success");
       setTimeout(() => setLinkCopiado(false), 2000);
     });
+  }
+
+  function handleQtdRequisicao(chave, valor, maxDisponivel) {
+    const v = String(valor).replace(/\D/g, "") || "";
+    const num = v === "" ? "" : Math.min(Number(v), maxDisponivel);
+    setQuantidadesRequisicao((prev) => ({ ...prev, [chave]: num === "" ? "" : String(num) }));
+  }
+
+  async function criarRequisicaoNaPagina() {
+    const empresaId = usuarioAtual?.compradorId || (usuarioAtual?.tipo === "comprador" ? usuarioAtual?._id : null);
+    if (!empresaId) {
+      Swal.fire("Erro", "Empresa não identificada.", "error");
+      return;
+    }
+    const nomeSol = (solicitante || "").trim();
+    if (!nomeSol) {
+      Swal.fire("Atenção", "Informe o nome do solicitante.", "warning");
+      return;
+    }
+
+    const itensEnvio = catalogComEstoque
+      .map((p) => {
+        const chave = chaveItem(p.nome, p.unidade);
+        const qtd = Number(quantidadesRequisicao[chave]) || 0;
+        return {
+          nome: p.nome,
+          unidade: p.unidade || "un",
+          quantidade: qtd,
+          disponivel: p.quantidadeDisponivel ?? 0,
+        };
+      })
+      .filter((i) => i.quantidade > 0);
+
+    if (itensEnvio.length === 0) {
+      Swal.fire("Atenção", "Informe a quantidade de pelo menos um item.", "info");
+      return;
+    }
+
+    const excede = itensEnvio.find((i) => i.quantidade > i.disponivel);
+    if (excede) {
+      Swal.fire(
+        "Quantidade inválida",
+        `"${excede.nome}": não é possível solicitar mais do que o disponível (${excede.disponivel} ${excede.unidade}).`,
+        "warning"
+      );
+      return;
+    }
+
+    setEnviandoRequisicao(true);
+    try {
+      const res = await fetch(`${API_URL}/api/requisicoes`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          empresa: empresaId,
+          setorOrigem: setorRequisicao.trim() || "Requisição pela página",
+          criadoPor: nomeSol,
+          prioridade: "Normal",
+          observacoes: observacoesRequisicao.trim(),
+          itens: itensEnvio.map(({ nome, unidade, quantidade }) => ({ nome, unidade, quantidade })),
+        }),
+      });
+      if (!res.ok) throw new Error("Falha ao criar requisição.");
+      Swal.fire("Sucesso", "Requisição criada com sucesso.", "success");
+      setSolicitante("");
+      setSetorRequisicao("");
+      setObservacoesRequisicao("");
+      const iniciais = {};
+      catalogComEstoque.forEach((p) => {
+        iniciais[chaveItem(p.nome, p.unidade)] = "";
+      });
+      setQuantidadesRequisicao(iniciais);
+      carregarRequisicoes(usuarioAtual);
+    } catch (err) {
+      console.error("Erro ao criar requisição:", err);
+      Swal.fire("Erro", err.message || "Não foi possível criar a requisição.", "error");
+    } finally {
+      setEnviandoRequisicao(false);
+    }
   }
 
   async function atualizarStatus(req, novoStatus) {
@@ -167,7 +309,7 @@ export default function SaidaMercadorias() {
             📤 Gerar Link de Requisição
           </h2>
           <p style={{ color: "#8b949e", marginBottom: 16, fontSize: "0.9375rem" }}>
-            Gere um link e envie para o funcionário. Ele acessará pelo celular, fará autenticação facial e poderá solicitar os produtos que precisa.
+            Gere um link e envie para o funcionário. Pelo link ele verá o catálogo por categoria, informará o nome (ou usará reconhecimento facial) e solicitará os itens. Não é necessário acesso ao sistema.
           </p>
           {linkRequisicao ? (
             <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
@@ -183,6 +325,129 @@ export default function SaidaMercadorias() {
             </div>
           ) : (
             <p style={{ color: "#8b949e" }}>Carregando...</p>
+          )}
+        </div>
+
+        {/* Seção: Fazer requisição direto na página (catálogo) */}
+        <div style={boxReq}>
+          <h2 style={{ marginBottom: 12, color: "#e6edf3", fontSize: "1.5rem", fontWeight: 700 }}>
+            📋 Fazer requisição nesta página
+          </h2>
+          <p style={{ color: "#8b949e", marginBottom: 16, fontSize: "0.9375rem" }}>
+            Use o catálogo abaixo para montar uma requisição e registrar a saída. Escolha a categoria e informe as quantidades e o nome do solicitante.
+          </p>
+
+          {loadingCatalog ? (
+            <p style={{ color: "#8b949e" }}>Carregando catálogo...</p>
+          ) : catalogComEstoque.length === 0 ? (
+            <p style={{ color: "#8b949e" }}>Nenhum item no catálogo. Cadastre itens em Meu Catálogo e Estoque.</p>
+          ) : (
+            <>
+              {categorias.length > 0 && (
+                <div style={{ marginBottom: 16 }}>
+                  <label style={{ color: "#8b949e", fontSize: "0.875rem", display: "block", marginBottom: 6 }}>
+                    Categoria
+                  </label>
+                  <select
+                    value={categoriaSelecionada}
+                    onChange={(e) => setCategoriaSelecionada(e.target.value)}
+                    style={selectDark}
+                    className="campo-fundo-claro"
+                  >
+                    {categorias.map((cat) => (
+                      <option key={cat} value={cat}>
+                        {cat}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              <div style={{ marginBottom: 12 }}>
+                <label style={{ color: "#8b949e", fontSize: "0.875rem" }}>Solicitante (obrigatório)</label>
+                <input
+                  type="text"
+                  value={solicitante}
+                  onChange={(e) => setSolicitante(e.target.value)}
+                  placeholder="Nome de quem está solicitando"
+                  style={inputDark}
+                  className="campo-fundo-claro"
+                />
+              </div>
+              <div style={{ marginBottom: 12 }}>
+                <label style={{ color: "#8b949e", fontSize: "0.875rem" }}>Setor (opcional)</label>
+                <input
+                  type="text"
+                  value={setorRequisicao}
+                  onChange={(e) => setSetorRequisicao(e.target.value)}
+                  placeholder="Ex.: Cozinha, Bar"
+                  style={inputDark}
+                  className="campo-fundo-claro"
+                />
+              </div>
+
+              <div style={{ overflowX: "auto", marginBottom: 16 }}>
+                <table style={{ width: "100%", borderCollapse: "collapse", color: "#e6edf3" }}>
+                  <thead>
+                    <tr>
+                      <th style={{ ...thDark, padding: "8px 10px", textAlign: "left" }}>Produto</th>
+                      <th style={{ ...thDark, padding: "8px 10px" }}>Un.</th>
+                      <th style={{ ...thDark, padding: "8px 10px" }}>Disp.</th>
+                      <th style={{ ...thDark, padding: "8px 10px" }}>Qtd</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {catalogComEstoque
+                      .filter((i) => (i.secao || "Sem seção") === categoriaSelecionada)
+                      .map((p) => {
+                        const chave = chaveItem(p.nome, p.unidade);
+                        const maxQtd = Number(p.quantidadeDisponivel) || 0;
+                        const valorAtual = quantidadesRequisicao[chave] || "";
+                        return (
+                          <tr key={chave} style={{ borderBottom: BORDER }}>
+                            <td style={{ padding: "8px 10px", color: "#e6edf3" }}>{p.nome}{p.marca ? ` — ${p.marca}` : ""}</td>
+                            <td style={{ padding: "8px 10px", color: "#8b949e" }}>{p.unidade || "un"}</td>
+                            <td style={{ padding: "8px 10px", color: "#8b949e" }}>{maxQtd}</td>
+                            <td style={{ padding: "8px 10px" }}>
+                              <input
+                                type="number"
+                                min={0}
+                                max={maxQtd}
+                                value={valorAtual}
+                                onChange={(e) => handleQtdRequisicao(chave, e.target.value, maxQtd)}
+                                placeholder="0"
+                                style={inputNumDark}
+                                className="campo-fundo-claro"
+                              />
+                            </td>
+                          </tr>
+                        );
+                      })}
+                  </tbody>
+                </table>
+              </div>
+
+              <div style={{ marginBottom: 16 }}>
+                <label style={{ color: "#8b949e", fontSize: "0.875rem" }}>Observações (opcional)</label>
+                <textarea
+                  value={observacoesRequisicao}
+                  onChange={(e) => setObservacoesRequisicao(e.target.value)}
+                  placeholder="Ex.: Urgente"
+                  rows={2}
+                  style={{ ...inputDark, resize: "vertical" }}
+                  className="campo-fundo-claro"
+                />
+              </div>
+
+              <button
+                type="button"
+                onClick={criarRequisicaoNaPagina}
+                disabled={enviandoRequisicao}
+                style={{ ...btn, background: "#25C19B", color: "#0B1C26" }}
+              >
+                {enviandoRequisicao ? "Criando..." : "Criar requisição"}
+              </button>
+            </>
           )}
         </div>
 
@@ -381,5 +646,45 @@ const inputLink = {
   border: BORDER,
   background: "#fff",
   color: "#1a1a1a",
+  fontSize: "0.9375rem",
+};
+
+const selectDark = {
+  width: "100%",
+  maxWidth: 320,
+  padding: "10px 12px",
+  borderRadius: 8,
+  border: BORDER,
+  background: CARD_BG,
+  color: "#e6edf3",
+  fontSize: "1rem",
+};
+
+const inputDark = {
+  width: "100%",
+  maxWidth: 400,
+  padding: "10px 12px",
+  borderRadius: 8,
+  border: BORDER,
+  background: CARD_BG,
+  color: "#e6edf3",
+  fontSize: "1rem",
+  boxSizing: "border-box",
+};
+
+const thDark = {
+  background: "rgba(255,255,255,0.06)",
+  color: "#8b949e",
+  fontWeight: 600,
+  fontSize: "0.875rem",
+};
+
+const inputNumDark = {
+  width: 72,
+  padding: "6px 8px",
+  borderRadius: 6,
+  border: BORDER,
+  background: CARD_BG,
+  color: "#e6edf3",
   fontSize: "0.9375rem",
 };

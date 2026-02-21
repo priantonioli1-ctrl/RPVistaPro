@@ -46,7 +46,7 @@ export default function Cadastro() {
       }
       const response = await cadastrarUsuario(payload);
 
-      alert(response.message || "Cadastro realizado com sucesso!");
+      alert(response.message || "Cadastro realizado com sucesso! Verifique seu email para ativar a conta.");
       navigate("/login");
 
     } catch (err) {

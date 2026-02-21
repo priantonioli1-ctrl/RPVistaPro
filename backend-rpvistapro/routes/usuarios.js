@@ -1,7 +1,9 @@
 import express from "express";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
+import crypto from "crypto";
 import Usuario from "../models/Usuario.js";
+import { enviarEmailVerificacao } from "../services/emailService.js";
 
 const router = express.Router();
 const JWT_SECRET = process.env.JWT_SECRET || "segredo123"; // coloque no .env depois
@@ -59,6 +61,11 @@ router.post("/", async (req, res) => {
     // Criptografar senha
     const senhaHash = await bcrypt.hash(senha, 10);
 
+    // Gerar token de verificação de email
+    const tokenVerificacao = crypto.randomBytes(32).toString("hex");
+    const tokenVerificacaoExpira = new Date();
+    tokenVerificacaoExpira.setHours(tokenVerificacaoExpira.getHours() + 24); // Expira em 24 horas
+
     const novo = await Usuario.create({
       nome,
       email,
@@ -66,15 +73,26 @@ router.post("/", async (req, res) => {
       tipo,
       cnpj,
       ramoAtuacao: tipo === "comprador" ? (ramoAtuacao || "").trim() : undefined,
+      emailVerificado: false,
+      tokenVerificacao,
+      tokenVerificacaoExpira,
     });
 
+    // Enviar email de verificação (não bloqueia o cadastro se falhar)
+    try {
+      await enviarEmailVerificacao(email, nome, tokenVerificacao);
+    } catch (emailError) {
+      console.error("⚠️ Erro ao enviar email de verificação (cadastro continuou):", emailError);
+    }
+
     return res.json({
-      message: "Usuário cadastrado com sucesso!",
+      message: "Usuário cadastrado com sucesso! Verifique seu email para ativar a conta.",
       usuario: {
         _id: novo._id,
         nome: novo.nome,
         tipo: novo.tipo,
-        cnpj: novo.cnpj
+        cnpj: novo.cnpj,
+        emailVerificado: false
       }
     });
 
@@ -138,8 +156,10 @@ router.post("/login", async (req, res) => {
         nome: usuario.nome,
         tipo: usuario.tipo,
         cnpj: usuario.cnpj,
-        ramoAtuacao: usuario.ramoAtuacao || ""
-      }
+        ramoAtuacao: usuario.ramoAtuacao || "",
+        emailVerificado: usuario.emailVerificado || false
+      },
+      emailNaoVerificado: !usuario.emailVerificado
     });
 
   } catch (err) {
@@ -237,7 +257,98 @@ router.put("/:id", auth, async (req, res) => {
 
 
 /* ============================================================
- 📌 6) EXCLUIR USUÁRIO (PROTEGIDO)
+ 📌 6) VERIFICAR EMAIL (PÚBLICO)
+============================================================ */
+router.get("/verificar-email", async (req, res) => {
+  try {
+    const { token } = req.query;
+
+    if (!token) {
+      return res.status(400).json({ error: "Token de verificação é obrigatório." });
+    }
+
+    const usuario = await Usuario.findOne({ tokenVerificacao: token });
+
+    if (!usuario) {
+      return res.status(404).json({ error: "Token de verificação inválido ou expirado." });
+    }
+
+    // Verificar se o token expirou
+    if (usuario.tokenVerificacaoExpira && new Date() > usuario.tokenVerificacaoExpira) {
+      return res.status(400).json({ error: "Token de verificação expirado. Solicite um novo." });
+    }
+
+    // Marcar email como verificado
+    usuario.emailVerificado = true;
+    usuario.tokenVerificacao = null;
+    usuario.tokenVerificacaoExpira = null;
+    await usuario.save();
+
+    return res.json({
+      message: "Email verificado com sucesso! Sua conta está ativa.",
+      emailVerificado: true
+    });
+  } catch (err) {
+    console.error("Erro ao verificar email:", err);
+    res.status(500).json({ error: "Erro ao verificar email." });
+  }
+});
+
+
+/* ============================================================
+ 📌 7) REENVIAR EMAIL DE VERIFICAÇÃO (PÚBLICO)
+============================================================ */
+router.post("/reenviar-verificacao", async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    if (!email) {
+      return res.status(400).json({ error: "Email é obrigatório." });
+    }
+
+    const usuario = await Usuario.findOne({ email: email.trim().toLowerCase() });
+
+    if (!usuario) {
+      // Por segurança, não revelar se o email existe ou não
+      return res.json({
+        message: "Se o email estiver cadastrado, um novo link de verificação será enviado."
+      });
+    }
+
+    if (usuario.emailVerificado) {
+      return res.json({ message: "Este email já está verificado." });
+    }
+
+    // Gerar novo token
+    const tokenVerificacao = crypto.randomBytes(32).toString("hex");
+    const tokenVerificacaoExpira = new Date();
+    tokenVerificacaoExpira.setHours(tokenVerificacaoExpira.getHours() + 24);
+
+    usuario.tokenVerificacao = tokenVerificacao;
+    usuario.tokenVerificacaoExpira = tokenVerificacaoExpira;
+    await usuario.save();
+
+    // Enviar email
+    try {
+      await enviarEmailVerificacao(usuario.email, usuario.nome, tokenVerificacao);
+      return res.json({
+        message: "Email de verificação reenviado com sucesso!"
+      });
+    } catch (emailError) {
+      console.error("Erro ao enviar email:", emailError);
+      return res.status(500).json({
+        error: "Erro ao enviar email. Tente novamente mais tarde."
+      });
+    }
+  } catch (err) {
+    console.error("Erro ao reenviar verificação:", err);
+    res.status(500).json({ error: "Erro ao reenviar email de verificação." });
+  }
+});
+
+
+/* ============================================================
+ 📌 8) EXCLUIR USUÁRIO (PROTEGIDO)
 ============================================================ */
 router.delete("/:id", auth, async (req, res) => {
   try {
