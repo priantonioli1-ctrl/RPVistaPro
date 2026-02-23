@@ -2,9 +2,8 @@ import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 const API_BASE = process.env.REACT_APP_API_URL || "";
-const AZUL = "#2980b9";
+const LARANJA_DESTAQUE = "#FF8A00";
 const BORDER = "1px solid rgba(255,255,255,0.08)";
-const CARD_BG = "#161b22";
 
 function getFornecedor(p) {
   return (p.fornecedor || p.produtos?.[0]?.fornecedor || p.itens?.[0]?.fornecedor || "").toString().trim() || "—";
@@ -69,14 +68,14 @@ export default function HistoricoCompras() {
   }
 
   return (
-    <div style={{ width: "100%", maxWidth: "none", padding: "0 8px", boxSizing: "border-box" }}>
+    <div className="layout-content-inner" style={{ width: "100%", padding: 0, boxSizing: "border-box", color: "#e6edf3" }}>
       <p style={styles.subtitulo}>
         Pedidos já aprovados, concluídos e recebidos — salvos aqui apenas para futura consulta.
       </p>
 
       <Section
         titulo="Concluídos (histórico)"
-        cor={AZUL}
+        cor={LARANJA_DESTAQUE}
         lista={pedidos}
         emptyMsg="Nenhum pedido concluído."
         renderCard={(p) => (
@@ -85,7 +84,7 @@ export default function HistoricoCompras() {
             qtdItens={getQtdItens(p)}
             total={p.total}
             status={p.status || "Concluído"}
-            corBorda={AZUL}
+            corBorda={LARANJA_DESTAQUE}
             extra={p.dataRecebimento ? `Recebido em ${new Date(p.dataRecebimento).toLocaleDateString("pt-BR")}` : null}
             acoes={
               <>
@@ -189,11 +188,7 @@ const styles = {
     width: "100%",
   },
   card: {
-    background: CARD_BG,
-    border: BORDER,
-    borderRadius: 12,
     padding: "20px 24px",
-    boxShadow: "0 1px 2px rgba(0,0,0,0.2)",
   },
   cardGrid: {
     display: "grid",
@@ -229,10 +224,10 @@ const styles = {
     justifyContent: "center",
   },
   btnAcao: {
-    background: AZUL,
+    background: "var(--gradient-btn-orange)",
     color: "#fff",
     border: "none",
-    borderRadius: 8,
+    borderRadius: 4,
     padding: "10px 18px",
     fontSize: "1rem",
     fontWeight: 600,

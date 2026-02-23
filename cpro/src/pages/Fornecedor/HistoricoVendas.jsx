@@ -40,7 +40,7 @@ export default function HistoricoVendas() {
           </h2>
           {aprovados.length ? (
             aprovados.map((p, i) => (
-              <Card key={p.id || i} border="#f1c40f" bg="#fffef2">
+              <Card key={p.id || i} border="#f1c40f">
                 <Linha label="Comprador" value={p.comprador} />
                 <Linha label="Qtd Produtos" value={p.qtdProdutos} />
                 <Linha
@@ -73,7 +73,7 @@ export default function HistoricoVendas() {
           </h2>
           {recebidos.length ? (
             recebidos.map((p, i) => (
-              <Card key={p.id || i} bg="#e8f5e9" border="#27ae60">
+              <Card key={p.id || i} border="#27ae60">
                 <Linha label="Comprador" value={p.comprador} />
                 <Linha label="Qtd Produtos" value={p.qtdProdutos} />
                 <Linha
@@ -104,18 +104,15 @@ export default function HistoricoVendas() {
 }
 
 /* 🔹 COMPONENTES AUXILIARES */
-function Card({ children, bg = "#fff", border = "#ccc" }) {
-  const isClaro = /^#(fff|f[f0-9a-f]{5}|e[89a-f][0-9a-f]{4})/i.test(String(bg));
+function Card({ children, border = "#ccc" }) {
   return (
     <div
       style={{
-        background: bg,
-        border: `1px solid ${border}`,
-        borderRadius: 10,
-        padding: 14,
+        background: "transparent",
+        borderLeft: `4px solid ${border}`,
+        padding: "20px 24px",
         marginTop: 10,
-        boxShadow: "0 2px 6px rgba(0,0,0,0.1)",
-        color: isClaro ? "#1f2e45" : undefined,
+        color: "#e6edf3",
       }}
     >
       {children}
@@ -149,18 +146,14 @@ const btnVoltar = {
   backgroundColor: "#e07c7c",
   color: "#fff",
   border: "none",
-  borderRadius: 6,
+  borderRadius: 4,
   padding: "8px 16px",
   cursor: "pointer",
   fontWeight: "bold",
 };
 
 const contentCard = {
-  backgroundColor: "var(--header-bg, #161b22)",
-  border: "1px solid rgba(255,255,255,0.08)",
-  borderRadius: 12,
   padding: 24,
-  boxShadow: "0 1px 2px rgba(0,0,0,0.2)",
   color: "#e6edf3",
 };
 
@@ -168,7 +161,7 @@ const btnAction = {
   backgroundColor: "#8bbae6",
   color: "#fff",
   border: "none",
-  borderRadius: 6,
+  borderRadius: 4,
   padding: "6px 12px",
   cursor: "pointer",
   fontWeight: "bold",

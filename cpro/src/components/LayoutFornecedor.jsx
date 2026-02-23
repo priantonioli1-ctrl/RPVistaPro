@@ -28,7 +28,7 @@ export default function LayoutFornecedor({ children, nomeFornecedor }) {
           style={{
             background: "rgba(255,255,255,0.1)",
             border: "none",
-            borderRadius: "6px",
+            borderRadius: "4px",
             padding: "8px 16px",
             color: "white",
             cursor: "pointer",

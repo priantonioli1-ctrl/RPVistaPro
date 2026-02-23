@@ -255,14 +255,13 @@ const btnVoltar = {
   backgroundColor: "#e07c7c",
   color: "#fff",
   border: "none",
-  borderRadius: 6,
+  borderRadius: 4,
   padding: "8px 16px",
   cursor: "pointer",
   fontWeight: "bold",
 };
 
 const BORDER = "1px solid rgba(255,255,255,0.08)";
-const CARD_BG = "#161b22";
 
 const mainWrap = {
   maxWidth: 600,
@@ -270,14 +269,10 @@ const mainWrap = {
 };
 
 const formBox = {
-  backgroundColor: CARD_BG,
-  border: BORDER,
-  borderRadius: 12,
   padding: 30,
   maxWidth: 500,
   width: "100%",
   margin: "0 auto",
-  boxShadow: "0 1px 2px rgba(0,0,0,0.2)",
   display: "flex",
   flexDirection: "column",
   gap: 16,
@@ -287,7 +282,7 @@ const formBox = {
 const input = {
   width: "100%",
   padding: "12px",
-  borderRadius: 8,
+  borderRadius: 4,
   border: BORDER,
   fontSize: "0.9375rem",
   color: "#1a1a1a",
@@ -297,10 +292,10 @@ const input = {
 
 const btnPrimary = {
   width: "100%",
-  backgroundColor: "#25C19B",
+  background: "var(--gradient-btn-primary)",
   color: "#0B1C26",
   border: "none",
-  borderRadius: 8,
+  borderRadius: 4,
   padding: "12px",
   cursor: "pointer",
   fontWeight: 700,
@@ -312,7 +307,7 @@ const btnDanger = {
   backgroundColor: "#FF8882",
   color: "#fff",
   border: "none",
-  borderRadius: 8,
+  borderRadius: 4,
   padding: "12px",
   cursor: "pointer",
   fontWeight: 700,

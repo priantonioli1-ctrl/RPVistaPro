@@ -3,8 +3,6 @@ import { jsPDF } from "jspdf";
 import { useNavigate } from "react-router-dom";
 
 const BORDER = "1px solid rgba(255,255,255,0.08)";
-const CARD_BG = "#161b22";
-const AZUL = "#2980b9";
 
 export default function Fornecedores() {
   const [fornecedores, setFornecedores] = useState([]);
@@ -127,7 +125,7 @@ export default function Fornecedores() {
   );
 
   return (
-    <div style={{ width: "100%", maxWidth: "none", padding: "0 8px", boxSizing: "border-box" }}>
+    <div className="layout-content-inner" style={{ width: "100%", padding: 0, boxSizing: "border-box", color: "#e6edf3", background: "transparent" }}>
       {/* Barra de ações */}
       <div style={styles.actions}>
         <input
@@ -137,7 +135,7 @@ export default function Fornecedores() {
           style={styles.inputBusca}
           className="campo-fundo-claro"
         />
-        <button onClick={gerarPDF} style={styles.btnSecundario}>
+        <button onClick={gerarPDF} style={styles.btnGerarPdf}>
           📄 Gerar PDF
         </button>
       </div>
@@ -188,56 +186,54 @@ export default function Fornecedores() {
         </button>
       </div>
 
-      {/* Lista de fornecedores */}
+      {/* Lista de fornecedores — mesma linha: campos + Excluir */}
       {fornecedoresFiltrados.length === 0 ? (
         <p style={styles.empty}>Nenhum fornecedor encontrado.</p>
       ) : (
         <div style={styles.cardList}>
           {fornecedoresFiltrados.map((f, i) => (
-            <div key={i} style={{ ...styles.card, borderLeft: `4px solid ${AZUL}` }}>
-              <div style={styles.cardGrid}>
-                <div style={styles.cardItem}>
-                  <span style={styles.label}>Nome</span>
-                  <input
-                    value={f.nome}
-                    onChange={(e) => editarCampo(i, "nome", e.target.value)}
-                    style={styles.inputInline}
-                    className="campo-fundo-claro"
-                    disabled={f.origem === "sistema"}
-                  />
-                </div>
-                <div style={styles.cardItem}>
-                  <span style={styles.label}>CNPJ</span>
-                  <input
-                    value={f.cnpj}
-                    onChange={(e) => editarCampo(i, "cnpj", e.target.value)}
-                    style={styles.inputInline}
-                    className="campo-fundo-claro"
-                    disabled={f.origem === "sistema"}
-                  />
-                </div>
-                <div style={styles.cardItem}>
-                  <span style={styles.label}>Telefone</span>
-                  <input
-                    value={f.telefone || ""}
-                    onChange={(e) => editarCampo(i, "telefone", e.target.value)}
-                    style={styles.inputInline}
-                    className="campo-fundo-claro"
-                    disabled={f.origem === "sistema"}
-                  />
-                </div>
-                <div style={styles.cardItem}>
-                  <span style={styles.label}>Email</span>
-                  <input
-                    value={f.email || ""}
-                    onChange={(e) => editarCampo(i, "email", e.target.value)}
-                    style={styles.inputInline}
-                    className="campo-fundo-claro"
-                    disabled={f.origem === "sistema"}
-                  />
-                </div>
+            <div key={i} style={styles.cardRow}>
+              <div style={styles.cardItem}>
+                <span style={styles.label}>Nome</span>
+                <input
+                  value={f.nome}
+                  onChange={(e) => editarCampo(i, "nome", e.target.value)}
+                  style={styles.inputInline}
+                  className="campo-fundo-claro"
+                  disabled={f.origem === "sistema"}
+                />
               </div>
-              <div style={styles.acoes}>
+              <div style={styles.cardItem}>
+                <span style={styles.label}>CNPJ</span>
+                <input
+                  value={f.cnpj}
+                  onChange={(e) => editarCampo(i, "cnpj", e.target.value)}
+                  style={styles.inputInline}
+                  className="campo-fundo-claro"
+                  disabled={f.origem === "sistema"}
+                />
+              </div>
+              <div style={styles.cardItem}>
+                <span style={styles.label}>Telefone</span>
+                <input
+                  value={f.telefone || ""}
+                  onChange={(e) => editarCampo(i, "telefone", e.target.value)}
+                  style={styles.inputInline}
+                  className="campo-fundo-claro"
+                  disabled={f.origem === "sistema"}
+                />
+              </div>
+              <div style={styles.cardItem}>
+                <span style={styles.label}>Email</span>
+                <input
+                  value={f.email || ""}
+                  onChange={(e) => editarCampo(i, "email", e.target.value)}
+                  style={styles.inputInline}
+                  className="campo-fundo-claro"
+                  disabled={f.origem === "sistema"}
+                />
+              </div>
+              <div style={styles.cardItemExcluir}>
                 <button
                   onClick={() => excluirFornecedor(i)}
                   style={styles.btnExcluir}
@@ -271,10 +267,10 @@ const styles = {
   inputBusca: {
     flex: 2,
     padding: "10px 12px",
-    borderRadius: 8,
+    borderRadius: 4,
     border: BORDER,
     minWidth: 200,
-    background: CARD_BG,
+    background: "rgba(0,0,0,0.2)",
     color: "#e6edf3",
     fontSize: "1rem",
   },
@@ -282,19 +278,25 @@ const styles = {
     background: "#25c19b",
     color: "#fff",
     border: "none",
-    borderRadius: 8,
+    borderRadius: 4,
+    padding: "10px 18px",
+    cursor: "pointer",
+    fontWeight: 600,
+    fontSize: "1rem",
+  },
+  btnGerarPdf: {
+    background: "var(--gradient-btn-primary)",
+    color: "#0B1C26",
+    border: "none",
+    borderRadius: 4,
     padding: "10px 18px",
     cursor: "pointer",
     fontWeight: 600,
     fontSize: "1rem",
   },
   formCard: {
-    background: CARD_BG,
-    border: BORDER,
-    borderRadius: 12,
-    padding: "20px 24px",
+    padding: "20px 0 24px",
     marginBottom: 24,
-    boxShadow: "0 1px 2px rgba(0,0,0,0.2)",
     display: "flex",
     flexWrap: "wrap",
     gap: 12,
@@ -303,17 +305,17 @@ const styles = {
     flex: 1,
     minWidth: 150,
     padding: "10px 12px",
-    borderRadius: 8,
+    borderRadius: 4,
     border: BORDER,
-    background: "#fff",
-    color: "#1a1a1a",
+    background: "transparent",
+    color: "#e6edf3",
     fontSize: "0.9375rem",
   },
   btnPrincipal: {
-    background: AZUL,
+    background: "var(--gradient-btn-orange)",
     color: "#fff",
     border: "none",
-    borderRadius: 8,
+    borderRadius: 4,
     padding: "10px 18px",
     cursor: "pointer",
     fontWeight: 600,
@@ -324,22 +326,25 @@ const styles = {
     flexDirection: "column",
     gap: 14,
   },
-  card: {
-    background: CARD_BG,
-    border: BORDER,
-    borderRadius: 12,
-    padding: "20px 24px",
-    boxShadow: "0 1px 2px rgba(0,0,0,0.2)",
-  },
-  cardGrid: {
-    display: "grid",
-    gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))",
+  cardRow: {
+    display: "flex",
+    flexWrap: "wrap",
+    alignItems: "flex-end",
     gap: "14px 24px",
+    padding: "20px 24px",
+    borderBottom: BORDER,
   },
   cardItem: {
     display: "flex",
     flexDirection: "column",
     gap: 6,
+    minWidth: 140,
+    flex: "1 1 140px",
+  },
+  cardItemExcluir: {
+    display: "flex",
+    alignItems: "flex-end",
+    marginLeft: "auto",
   },
   label: {
     fontSize: "0.8125rem",
@@ -350,25 +355,17 @@ const styles = {
   inputInline: {
     width: "100%",
     padding: "8px 10px",
-    borderRadius: 6,
+    borderRadius: 4,
     border: BORDER,
-    background: "#fff",
-    color: "#1a1a1a",
+    background: "transparent",
+    color: "#e6edf3",
     fontSize: "0.9375rem",
-  },
-  acoes: {
-    marginTop: 16,
-    paddingTop: 14,
-    borderTop: BORDER,
-    display: "flex",
-    gap: 12,
-    justifyContent: "flex-end",
   },
   btnExcluir: {
     background: "transparent",
     color: "#f85149",
     border: "1px solid rgba(248,81,73,0.5)",
-    borderRadius: 8,
+    borderRadius: 4,
     padding: "8px 16px",
     cursor: "pointer",
     fontWeight: 600,

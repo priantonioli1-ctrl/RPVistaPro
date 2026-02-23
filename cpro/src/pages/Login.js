@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import logo from "../assets/logo.png";
+import "../styles/theme.css";
 
 const API_URL = process.env.REACT_APP_API_URL || "http://localhost:4001";
 
@@ -91,10 +92,10 @@ export default function Login() {
   }
 
   return (
-    <div style={pageWrapper}>
+    <div style={pageWrapper} className="login-page">
       <div style={logoContainer}>
-        <img src={logo} alt="Logo" style={{ width: "390px" }} />
-        <h1 style={titulo}>Bem-vindo(a)</h1>
+        <img src={logo} alt="Logo" style={logoImg} />
+        <h1 style={titulo}>BEM-VINDO(A)</h1>
       </div>
 
       <form onSubmit={handleLogin} style={formStyle}>
@@ -105,6 +106,7 @@ export default function Login() {
           onChange={(e) => setEmail(e.target.value)}
           style={inputStyle}
           placeholder="Digite seu e-mail"
+          className="login-input"
         />
 
         <label style={labelStyle}>Senha</label>
@@ -114,6 +116,7 @@ export default function Login() {
           onChange={(e) => setSenha(e.target.value)}
           style={inputStyle}
           placeholder="Digite sua senha"
+          className="login-input"
         />
 
         <button type="submit" style={btnPrimary}>
@@ -128,17 +131,19 @@ export default function Login() {
   );
 }
 
-/* --- ESTILOS --- */
+/* --- ESTILOS (tema da plataforma: dark/neon) --- */
 const pageWrapper = {
-  backgroundColor: "#0F2D3F",
-  color: "#fff",
+  background: "var(--content-bg-grad)",
+  color: "var(--text)",
   minHeight: "100vh",
   display: "flex",
   flexDirection: "column",
   alignItems: "center",
   justifyContent: "center",
-  fontFamily: "Poppins, sans-serif",
-  padding: "20px",
+  fontFamily: "var(--font-sans)",
+  padding: 0,
+  margin: 0,
+  boxSizing: "border-box",
 };
 
 const logoContainer = {
@@ -146,11 +151,20 @@ const logoContainer = {
   marginBottom: "30px",
 };
 
+const logoImg = {
+  width: "390px",
+  maxWidth: "100%",
+  height: "auto",
+};
+
 const titulo = {
+  fontFamily: '"Poppins", "Inter", sans-serif',
   fontSize: "1.8rem",
-  fontWeight: "bold",
-  color: "#ffffff",
+  fontWeight: 700,
+  color: "var(--text-muted)",
   marginTop: "10px",
+  textTransform: "uppercase",
+  letterSpacing: "0.02em",
 };
 
 const formStyle = {
@@ -158,48 +172,58 @@ const formStyle = {
   flexDirection: "column",
   width: "100%",
   maxWidth: "380px",
-  background: "#152B3C",
+  background: "transparent",
   padding: "30px",
-  borderRadius: "16px",
-  boxShadow: "0 6px 20px rgba(0,0,0,0.3)",
+  borderRadius: "var(--card-radius)",
+  border: "var(--card-border)",
+  boxSizing: "border-box",
+  margin: 0,
 };
 
 const labelStyle = {
-  fontWeight: "500",
-  fontSize: "0.95rem",
+  fontWeight: 600,
+  fontSize: "0.8125rem",
   marginBottom: "6px",
-  color: "#e0e0e0",
+  color: "var(--text-muted)",
+  textTransform: "uppercase",
+  letterSpacing: "0.04em",
 };
 
 const inputStyle = {
   padding: "12px 14px",
   marginBottom: "16px",
-  borderRadius: "8px",
-  border: "1px solid #3D566E",
-  background: "#1E3A4C",
-  color: "#ffffff",
+  borderRadius: "var(--input-radius)",
+  border: "var(--card-border)",
+  background: "var(--input-bg)",
+  color: "var(--input-color)",
   fontSize: "1rem",
   outline: "none",
+  boxSizing: "border-box",
 };
 
 const btnPrimary = {
-  background: "#25C19B",
-  color: "#fff",
+  background: "var(--gradient-login-cyan)",
+  color: "#0F011E",
   border: "none",
   padding: "12px",
-  borderRadius: "8px",
+  borderRadius: "var(--input-radius)",
   cursor: "pointer",
-  fontWeight: "bold",
+  fontWeight: 700,
   fontSize: "1rem",
   marginTop: "10px",
+  textTransform: "uppercase",
+  letterSpacing: "0.03em",
+  boxShadow: "var(--login-btn-shadow)",
+  transition: "box-shadow 0.2s ease, transform 0.2s ease",
 };
 
 const btnSecondary = {
   marginTop: "20px",
   background: "transparent",
-  color: "#25C19B",
+  color: "var(--text-muted)",
   border: "none",
   cursor: "pointer",
   textDecoration: "underline",
-  fontWeight: "500",
+  fontWeight: 500,
+  fontSize: "0.9375rem",
 };

@@ -328,14 +328,14 @@ export default function RequisicaoPorLink() {
                       ref={videoRef}
                       autoPlay
                       playsInline
-                      style={{ width: "100%", maxWidth: 400, borderRadius: 12, border: "4px solid #25C19B" }}
+                      style={{ width: "100%", maxWidth: 400, borderRadius: 4, border: "4px solid #20b5a6" }}
                     />
                   </div>
                   <div style={{ display: "flex", gap: 10, justifyContent: "center", flexWrap: "wrap" }}>
                     <button
                       onClick={autenticarFuncionario}
                       disabled={autenticando}
-                      style={{ ...btnAuth, background: "#25C19B" }}
+                      style={{ ...btnAuth, background: "var(--gradient-btn-primary)" }}
                     >
                       {autenticando ? "Autenticando..." : "✓ Confirmar"}
                     </button>
@@ -358,7 +358,7 @@ export default function RequisicaoPorLink() {
                 className="campo-fundo-claro"
               />
               <div style={{ display: "flex", gap: 8 }}>
-                <button onClick={confirmarNomeManual} style={{ ...btnAuth, background: "#25C19B" }}>
+                <button onClick={confirmarNomeManual} style={{ ...btnAuth, background: "var(--gradient-btn-primary)" }}>
                   Continuar
                 </button>
                 <button onClick={() => setUsarNomeManual(false)} style={{ ...btnAuth, background: "#6c757d" }}>
@@ -510,10 +510,9 @@ const pageWrap = {
 const card = {
   maxWidth: 720,
   width: "100%",
-  background: "#fff",
-  borderRadius: 12,
+  background: "transparent",
+  borderRadius: 4,
   padding: 24,
-  boxShadow: "0 4px 20px rgba(0,0,0,0.2)",
 };
 
 const title = { color: "#0F2D3F", marginBottom: 8, fontSize: "1.5rem", textAlign: "center" };
@@ -521,20 +520,20 @@ const title = { color: "#0F2D3F", marginBottom: 8, fontSize: "1.5rem", textAlign
 const select = {
   width: "100%",
   padding: "10px 12px",
-  borderRadius: 8,
-  border: "1px solid #ccc",
-  background: "#fff",
-  color: "#1a1a1a",
+  borderRadius: 4,
+  border: "1px solid rgba(255,255,255,0.08)",
+  background: "transparent",
+  color: "#e6edf3",
   fontSize: "1rem",
 };
 
 const inputText = {
   width: "100%",
   padding: "10px 12px",
-  borderRadius: 8,
-  border: "1px solid #ccc",
-  background: "#fff",
-  color: "#1a1a1a",
+  borderRadius: 4,
+  border: "1px solid rgba(255,255,255,0.08)",
+  background: "transparent",
+  color: "#e6edf3",
   fontSize: "1rem",
   boxSizing: "border-box",
 };
@@ -546,17 +545,17 @@ const td = { padding: 10, borderBottom: "1px solid #eee", color: "#333" };
 const inputNum = {
   width: 80,
   padding: 8,
-  borderRadius: 6,
-  border: "1px solid #ccc",
-  background: "#fff",
-  color: "#1a1a1a",
+  borderRadius: 4,
+  border: "1px solid rgba(255,255,255,0.08)",
+  background: "transparent",
+  color: "#e6edf3",
 };
 
 const btnEnviar = {
-  background: "#25C19B",
+  background: "var(--gradient-btn-primary)",
   color: "#0B1C26",
   border: "none",
-  borderRadius: 8,
+  borderRadius: 4,
   padding: "12px 24px",
   fontSize: "1rem",
   fontWeight: "bold",
@@ -564,10 +563,10 @@ const btnEnviar = {
 };
 
 const btnAuth = {
-  background: "#2980b9",
+  background: "var(--gradient-btn-orange)",
   color: "#fff",
   border: "none",
-  borderRadius: 8,
+  borderRadius: 4,
   padding: "12px 24px",
   fontSize: "1rem",
   fontWeight: "bold",

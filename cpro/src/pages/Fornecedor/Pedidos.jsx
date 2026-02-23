@@ -205,7 +205,7 @@ export default function PedidosPlus() {
           )}
         </Section>
 
-        <Section cor="#2980b9" titulo="🔵 Concluídos" lista={concluidos}>
+        <Section cor="#FF8A00" titulo="Concluídos" lista={concluidos}>
           {(p) => (
             <>
               <Linha label="Comprador" value={p.comprador} />
@@ -252,7 +252,7 @@ function Itens({ pedido, onExcluir }) {
     padding: "6px 0",
     color: "#162232", // 🔹 texto escuro visível
     backgroundColor: "#f9f9f9", // 🔹 fundo claro alternado
-    borderRadius: 6,
+    borderRadius: 4,
   }}
         >
           <div>{it.produto}</div>
@@ -274,7 +274,7 @@ function Card({ children, bg = "#fff", border = "#ccc" }) {
       style={{
         background: bg,
         border: `1px solid ${border}`,
-        borderRadius: 10,
+        borderRadius: 4,
         padding: 14,
         marginTop: 10,
         boxShadow: "0 2px 6px rgba(0,0,0,0.1)",
@@ -296,27 +296,23 @@ function Linha({ label, value }) {
 
 /* 🎨 ESTILOS */
 const contentCard = {
-  backgroundColor: "#161b22",
-  border: "1px solid rgba(255,255,255,0.08)",
-  borderRadius: 12,
   padding: 24,
-  boxShadow: "0 1px 2px rgba(0,0,0,0.2)",
   color: "#e6edf3",
 };
 const btnAprovar = {
   backgroundColor: "#27ae60",
   color: "#fff",
   border: "none",
-  borderRadius: 6,
+  borderRadius: 4,
   padding: "8px 14px",
   cursor: "pointer",
   fontWeight: "bold",
 };
 const btnVisualizar = {
-  backgroundColor: "#8bbae6",
+  background: "var(--gradient-btn-orange)",
   color: "#fff",
   border: "none",
-  borderRadius: 6,
+  borderRadius: 4,
   padding: "8px 14px",
   cursor: "pointer",
   fontWeight: "bold",
@@ -325,7 +321,7 @@ const btnItens = {
   backgroundColor: "#f1c40f",
   color: "#162232",
   border: "none",
-  borderRadius: 6,
+  borderRadius: 4,
   padding: "8px 14px",
   cursor: "pointer",
   fontWeight: "bold",
@@ -334,7 +330,7 @@ const btnAvaliar = {
   backgroundColor: "#9b59b6",
   color: "#fff",
   border: "none",
-  borderRadius: 6,
+  borderRadius: 4,
   padding: "8px 14px",
   cursor: "pointer",
   fontWeight: "bold",
@@ -343,7 +339,7 @@ const btnExcluirItem = {
   backgroundColor: "#e07c7c",
   color: "#fff",
   border: "none",
-  borderRadius: 6,
+  borderRadius: 4,
   padding: "6px 10px",
   cursor: "pointer",
   fontWeight: "bold",

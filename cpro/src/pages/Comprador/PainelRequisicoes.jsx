@@ -60,7 +60,7 @@ export default function PainelRequisicoes() {
       showCancelButton: true,
       confirmButtonText: "Sim",
       cancelButtonText: "Cancelar",
-      confirmButtonColor: "#25C19B",
+      confirmButtonColor: "#20b5a6",
     });
 
     if (!confirmar.isConfirmed) return;
@@ -164,9 +164,9 @@ export default function PainelRequisicoes() {
               <input
                 readOnly
                 value={linkRequisicao}
-                style={{ flex: 1, minWidth: 200, padding: 10, borderRadius: 8, border: "1px solid #ccc", fontSize: 14 }}
+                style={{ flex: 1, minWidth: 200, padding: 10, borderRadius: 4, border: "1px solid #ccc", fontSize: 14 }}
               />
-              <button type="button" onClick={copiarLink} style={{ ...btn, background: "#25C19B" }}>
+              <button type="button" onClick={copiarLink} style={{ ...btn, background: "var(--gradient-btn-primary)" }}>
                 {linkCopiado ? "Copiado!" : "Copiar link"}
               </button>
             </div>
@@ -196,7 +196,7 @@ export default function PainelRequisicoes() {
                     style={{
                       background: coresStatus[req.status],
                       padding: "6px 12px",
-                      borderRadius: 8,
+                      borderRadius: 4,
                       fontWeight: "bold",
                     }}
                   >
@@ -232,7 +232,7 @@ export default function PainelRequisicoes() {
 
                   {req.status === "Em Separação" && (
                     <button
-                      style={{ ...btn, background: "#8BBBE6" }}
+                      style={{ ...btn, background: "var(--gradient-btn-orange)" }}
                       onClick={() => atualizarStatus(req, "Atendida")}
                     >
                       Finalizar + Baixar Estoque
@@ -292,7 +292,7 @@ const btnSair = {
   border: "none",
   padding: "8px 14px",
   color: "#fff",
-  borderRadius: 8,
+  borderRadius: 4,
   cursor: "pointer",
   fontWeight: "bold",
 };
@@ -312,16 +312,12 @@ const title = {
 };
 
 const BORDER = "1px solid rgba(255,255,255,0.08)";
-const CARD_BG = "#161b22";
 
 const boxReq = {
-  background: CARD_BG,
-  border: BORDER,
   color: "#e6edf3",
   padding: 20,
-  borderRadius: 12,
-  boxShadow: "0 1px 2px rgba(0,0,0,0.2)",
   marginBottom: 18,
+  borderBottom: BORDER,
 };
 
 const reqHeader = {
@@ -339,7 +335,7 @@ const acoes = {
 const btn = {
   padding: "8px 14px",
   border: "none",
-  borderRadius: 8,
+  borderRadius: 4,
   cursor: "pointer",
   fontWeight: "bold",
   color: "#e6edf3",

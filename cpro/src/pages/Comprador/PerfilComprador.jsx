@@ -135,7 +135,7 @@ export default function PerfilComprador() {
   return (
     <div style={{ width: "100%", maxWidth: "none", padding: "0 8px", boxSizing: "border-box", color: "#e6edf3" }}>
       <main style={container}>
-        <section style={card}>
+        <section className="card-panel" style={{ padding: 30, marginBottom: 35, display: "flex", flexDirection: "column", gap: 16, color: "#e6edf3" }}>
 
           <label style={{ color: "#e6edf3", fontWeight: 600, marginBottom: 4 }}>Nome *</label>
           <input
@@ -221,53 +221,41 @@ const page = { background: "#0F2D3F", minHeight: "100vh", fontFamily: "Poppins, 
 const header = { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "22px 40px" };
 const logoRow = { display: "flex", alignItems: "center", gap: 14 };
 const headerBtns = { display: "flex", alignItems: "center", gap: 12 };
-const btnVoltar = { background: "#3D566E", border: "none", borderRadius: 8, padding: "10px 18px", color: "white", cursor: "pointer", fontWeight: 600, fontSize: 15 };
-const logoutBtn = { background: "#e74c3c", border: "none", borderRadius: 8, padding: "10px 18px", color: "white", cursor: "pointer", fontWeight: 600, fontSize: 15 };
+const btnVoltar = { background: "#3D566E", border: "none", borderRadius: 4, padding: "10px 18px", color: "white", cursor: "pointer", fontWeight: 600, fontSize: 15 };
+const logoutBtn = { background: "#e74c3c", border: "none", borderRadius: 4, padding: "10px 18px", color: "white", cursor: "pointer", fontWeight: 600, fontSize: 15 };
 const BORDER = "1px solid rgba(255,255,255,0.08)";
-const CARD_BG = "#161b22";
 
 const container = { maxWidth: 600, margin: "24px auto", padding: "0 20px" };
-const card = { 
-  background: CARD_BG, 
-  border: BORDER,
-  color: "#e6edf3", 
-  padding: 30, 
-  borderRadius: 12, 
-  boxShadow: "0 1px 2px rgba(0,0,0,0.2)", 
-  marginBottom: 35,
-  display: "flex",
-  flexDirection: "column",
-  gap: 16
-};
+/* card visual via .card-panel */
 const cardTitle = { fontSize: "1.5rem", fontWeight: 700, marginBottom: 20, color: "#e6edf3" };
 const input = { 
   padding: "12px", 
-  borderRadius: 8, 
+  borderRadius: 4, 
   border: BORDER, 
   marginBottom: 12, 
   width: "100%", 
-  background: "#fff", 
+  background: "transparent", 
   fontSize: "0.9375rem", 
-  color: "#1a1a1a",
+  color: "#e6edf3",
   boxSizing: "border-box"
 };
 const btnPrimary = { 
-  background: "#25c19b", 
+  background: "var(--gradient-btn-primary)", 
   width: "100%", 
   padding: 12, 
-  borderRadius: 8, 
+  borderRadius: 4, 
   border: "none", 
-  color: "#0B1C26", 
+  color: "#0F011E", 
   fontWeight: 700, 
   cursor: "pointer", 
   fontSize: "0.9375rem", 
   marginTop: 4 
 };
 const btnDanger = { 
-  background: "#FF8882", 
+  background: "var(--gradient-btn-danger)", 
   width: "100%", 
   padding: 12, 
-  borderRadius: 8, 
+  borderRadius: 4, 
   border: "none", 
   color: "#fff", 
   fontWeight: 700, 

@@ -3,6 +3,8 @@ import express from "express";
 import mongoose from "mongoose";
 import Pedido from "../models/Pedido.js";
 import Estoque from "../models/Estoque.js";
+import NotaFiscal from "../models/NotaFiscal.js";
+import EstoqueFornecedor from "../models/EstoqueFornecedor.js";
 import Usuario from "../models/Usuario.js";
 import { enviarNotificacaoNovoPedido, enviarNotificacaoPedidoAprovado } from "../services/emailService.js";
 
@@ -257,6 +259,52 @@ router.put("/:id", async (req, res) => {
         }
         await estoque.save();
         console.log(`📦 Em trânsito atualizado para comprador ${compradorId} (pedido ${pedido._id})`);
+
+        // Gerar nota fiscal (para fornecedor = fatura; para comprador = documento arquivado para contabilidade)
+        try {
+          const numeroNF = `NF-${new Date().toISOString().slice(0, 10).replace(/-/g, "")}-${pedido._id.toString().slice(-6)}`;
+          await NotaFiscal.create({
+            pedido: pedido._id,
+            numero: numeroNF,
+            dataEmissao: new Date(),
+            comprador: (pedido.empresa || "").toString().trim(),
+            compradorId: compradorId ? String(compradorId) : undefined,
+            fornecedor: (pedido.fornecedor || "").toString().trim(),
+            itens: (pedido.itens || []).map((i) => ({
+              nome: (i.nome || "").toString().trim(),
+              unidade: (i.unidade || "un").toString().trim(),
+              quantidade: Number(i.quantidade) || 0,
+              precoUnitario: Number(i.precoUnitario) || 0,
+            })),
+            total: Number(pedido.total) || 0,
+          });
+          console.log(`📄 Nota fiscal ${numeroNF} gerada para pedido ${pedido._id}`);
+        } catch (nfErr) {
+          console.error("⚠️ Erro ao gerar nota fiscal (pedido atualizado mesmo assim):", nfErr);
+        }
+
+        // Dar baixa no estoque do fornecedor (como em ERPs de gestão)
+        try {
+          const fornecedorNome = (pedido.fornecedor || "").toString().trim();
+          if (fornecedorNome) {
+            const estFornecedor = await EstoqueFornecedor.findOne({ empresa: fornecedorNome });
+            if (estFornecedor && Array.isArray(estFornecedor.itens)) {
+              for (const item of pedido.itens) {
+                const nome = (item.nome || "").toString().trim();
+                const qtd = Number(item.quantidade) || 0;
+                if (!nome || qtd <= 0) continue;
+                const idx = estFornecedor.itens.findIndex((i) => (i.nome || "").toLowerCase() === nome.toLowerCase());
+                if (idx >= 0) {
+                  estFornecedor.itens[idx].quantidade = Math.max(0, (Number(estFornecedor.itens[idx].quantidade) || 0) - qtd);
+                }
+              }
+              await estFornecedor.save();
+              console.log(`📦 Baixa no estoque do fornecedor "${fornecedorNome}" (pedido ${pedido._id})`);
+            }
+          }
+        } catch (estErr) {
+          console.error("⚠️ Erro ao dar baixa no estoque do fornecedor (pedido atualizado mesmo assim):", estErr);
+        }
 
         // Enviar notificação por email para o comprador
         try {

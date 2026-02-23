@@ -31,13 +31,12 @@ function RecuperarSenha() {
           gap: "15px",
           width: "300px",
           padding: "20px",
-          border: "1px solid #ddd",
-          borderRadius: "10px",
-          boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
-          background: "#fff",
+          border: "1px solid rgba(255,255,255,0.08)",
+          borderRadius: "4px",
+          background: "transparent",
         }}
       >
-        <h2 style={{ textAlign: "center", color: "#283e4d" }}>Recuperar Senha</h2>
+        <h2 style={{ textAlign: "center", color: "#e6edf3" }}>Recuperar Senha</h2>
 
         <input
           type="email"
@@ -45,6 +44,13 @@ function RecuperarSenha() {
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           required
+          style={{
+            padding: "10px 12px",
+            borderRadius: 4,
+            border: "1px solid rgba(255,255,255,0.2)",
+            background: "transparent",
+            color: "#e6edf3",
+          }}
         />
 
         <button
@@ -55,7 +61,7 @@ function RecuperarSenha() {
             color: "white",
             fontWeight: "bold",
             border: "none",
-            borderRadius: "5px",
+            borderRadius: "4px",
             cursor: "pointer",
           }}
         >

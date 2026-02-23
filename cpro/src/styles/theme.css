@@ -1,40 +1,87 @@
-:root{
-  /* Cores da marca — mude depois para as suas */
-  --brand: #5B6CFF;
-  --brand-600: #4c5ae0;
-  --brand-700: #3b47b8;
+/* ============================================
+   Dark/Neon Futurist — Variáveis globais (Root)
+   ============================================ */
 
-  /* Neutros elegantes */
-  --bg: #0f1115;
-  --panel: #171a21;
-  --panel-2: #1d212b;
-  --text: #e9ecf1;
-  --muted: #9aa3b2;
-  --border: #2a2f3a;
+:root {
+  /* 1. Definição de variáveis (referência de design) */
+  --bg-main: #0F011E;
+  --bg-sidebar: #1A0332;
+  --bg-card-grad: linear-gradient(135deg, #240643 0%, #14022A 100%);
+  /* Fundo: degradê de baixo pra cima e da direita pra esquerda — ponta esquerda (canto superior esquerdo) mais clara #4d026b */
+  --content-bg-grad: linear-gradient(315deg, #0F011E 0%, #14022A 35%, #1A0332 65%, #4d026b 100%);
+  --neon-cyan: #00F2FF;
+  --neon-pink: #FF007A;
+  --text-muted: #8E94AA;
+
+  /* Aliases para compatibilidade com o resto do projeto */
+  --bg: var(--bg-main);
+  --panel: var(--bg-card-grad);
+  --panel-2: linear-gradient(135deg, #2a0550 0%, #1a0335 100%);
+  --border: rgba(255, 255, 255, 0.08);
+  --text: #ffffff;
+  --muted: var(--text-muted);
+  --brand: var(--neon-cyan);
+
+  /* Cards e painéis: fio de luz + sombra */
+  --card-border: 1px solid rgba(255, 255, 255, 0.08);
+  --card-radius: 4px;
+  --input-radius: 4px;
+  --card-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+  --card-shadow-hover: 0 12px 36px rgba(0, 0, 0, 0.55), 0 0 24px rgba(0, 242, 255, 0.1);
+
+  /* Botões: gradientes — primário/sucesso = mesmo do botão Entrar (#10dcc2 → #20b5a6 → #207b76) */
+  --gradient-btn-primary: linear-gradient(180deg, #10dcc2 0%, #20b5a6 50%, #207b76 100%);
+  --gradient-btn-success: var(--gradient-btn-primary);
+  --gradient-login-cyan: var(--gradient-btn-primary);
+  --gradient-btn-danger: linear-gradient(135deg, #FF8A00 0%, var(--neon-pink) 100%);
+  /* Botões secundários/azuis → gradiente laranja (#FF8A00 = destaque-1) */
+  --gradient-btn-orange: linear-gradient(135deg, #FFB347 0%, #FF8A00 50%, #E07800 100%);
+  --gradient-neon-cyan: linear-gradient(135deg, #4169E1 0%, var(--neon-cyan) 100%);
+  --btn-primary-shadow: 0 4px 14px rgba(32, 181, 166, 0.45), 0 2px 6px rgba(0, 0, 0, 0.3);
+  --btn-primary-shadow-hover: 0 6px 20px rgba(32, 181, 166, 0.5), 0 3px 10px rgba(0, 0, 0, 0.35);
+  --login-btn-shadow: var(--btn-primary-shadow);
+  --login-btn-shadow-hover: var(--btn-primary-shadow-hover);
+
+  /* Inputs dark mode */
+  --input-bg: rgba(0, 0, 0, 0.3);
+  --input-color: #ffffff;
+  --input-focus-border: var(--neon-cyan);
+  --input-focus-glow: 0 0 0 3px rgba(0, 242, 255, 0.25);
 
   /* Espaçamento e raio */
-  --space-1: .25rem;
-  --space-2: .5rem;
-  --space-3: .75rem;
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
   --space-4: 1rem;
   --space-6: 1.5rem;
   --space-8: 2rem;
-  --radius: 14px;
+  --radius: 4px;
 
-  /* Sombras: suaves e profissionais */
-  --shadow-1: 0 1px 2px rgba(0,0,0,.25), 0 8px 24px rgba(0,0,0,.28);
-  --shadow-2: 0 1px 3px rgba(0,0,0,.28), 0 12px 32px rgba(0,0,0,.35);
+  /* Fonte: Montserrat (geométrica / sans-serif) */
+  --font-sans: "Montserrat", "Inter", system-ui, sans-serif;
 }
 
-@media (prefers-color-scheme: light){
-  :root{
-    --bg:#f7f8fb;
-    --panel:#ffffff;
-    --panel-2:#f4f6fb;
-    --text:#111319;
-    --muted:#596076;
-    --border:#e7eaf1;
-    --shadow-1: 0 1px 2px rgba(10, 13, 20, .06), 0 8px 24px rgba(10,13,20,.08);
-    --shadow-2: 0 1px 3px rgba(10, 13, 20, .08), 0 12px 32px rgba(10,13,20,.12);
+@media (prefers-color-scheme: light) {
+  :root {
+    --bg-main: #0F011E;
+    --bg-sidebar: #1A0332;
+    --bg-card-grad: linear-gradient(135deg, #240643 0%, #14022A 100%);
+    --text-muted: #8E94AA;
   }
+}
+
+/* Login: inputs com foco no padrão da plataforma */
+.login-page .login-input:focus {
+  border-color: var(--input-focus-border);
+  box-shadow: var(--input-focus-glow);
+}
+
+/* Login: botão Entrar com mais profundidade no hover */
+.login-page form button[type="submit"]:hover {
+  box-shadow: var(--login-btn-shadow-hover);
+  transform: translateY(-1px);
+}
+.login-page form button[type="submit"]:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 8px rgba(0, 184, 196, 0.3);
 }

@@ -318,10 +318,10 @@ export default function PedidoDetalhadoComprador() {
       <button
         onClick={salvarNoBanco}
         style={{
-          background: "#8bbae6",
-          color: "#162232",
+          background: "var(--gradient-btn-orange)",
+          color: "#fff",
           border: "none",
-          borderRadius: 6,
+          borderRadius: 4,
           padding: "8px 14px",
           marginBottom: 20,
           cursor: "pointer",
@@ -392,7 +392,7 @@ export default function PedidoDetalhadoComprador() {
                         background: "#e74c3c",
                         color: "#fff",
                         border: "none",
-                        borderRadius: 6,
+                        borderRadius: 4,
                         padding: "4px 8px",
                         cursor: "pointer",
                         fontSize: "0.8rem",
@@ -416,7 +416,7 @@ export default function PedidoDetalhadoComprador() {
               background: "#27ae60",
               color: "#fff",
               border: "none",
-              borderRadius: 6,
+              borderRadius: 4,
               padding: "10px 18px",
               cursor: "pointer",
               fontWeight: "bold",
@@ -430,16 +430,16 @@ export default function PedidoDetalhadoComprador() {
           <button
             onClick={concluirPedido}
             style={{
-              background: "#2980b9",
+              background: "var(--gradient-btn-orange)",
               color: "#fff",
               border: "none",
-              borderRadius: 6,
+              borderRadius: 4,
               padding: "10px 18px",
               cursor: "pointer",
               fontWeight: "bold",
             }}
           >
-            🔵 Concluir Pedido
+            Concluir Pedido
           </button>
         </div>
       )}

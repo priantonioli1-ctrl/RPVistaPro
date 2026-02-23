@@ -1,7 +1,8 @@
-
 // routes/catalogos-fornecedores.js
 import express from "express";
 import CatalogoFornecedor from "../models/CatalogoFornecedor.js";
+import EstoqueFornecedor from "../models/EstoqueFornecedor.js";
+
 const router = express.Router();
 // ✅ POST - Criar ou atualizar catálogo do fornecedor
 router.post("/", async (req, res) => {
@@ -83,17 +84,40 @@ router.post("/", async (req, res) => {
     res.status(status).json({ error: msg });
   }
 });
-router.get("/", async (_req, res) => {
+router.get("/", async (req, res) => {
   try {
+    const comDisponibilidade = (req.query.comDisponibilidade || "").toString() === "1" || req.query.comDisponibilidade === true;
     const todos = await CatalogoFornecedor.find({}, "-__v").sort({ empresa: 1 }).lean();
 
-    console.log(`📦 ${todos.length} catálogos de fornecedores retornados para comparação.`);
-
     if (!todos.length) {
-      return res.status(200).json([]); // Evita erro no frontend quando não há catálogos
+      return res.status(200).json([]);
     }
 
-    return res.json(todos);
+    if (!comDisponibilidade) {
+      return res.json(todos);
+    }
+
+    const resultado = [];
+    for (const doc of todos) {
+      const empresa = (doc.empresa || "").toString().trim();
+      let estoqueMap = new Map();
+      const est = await EstoqueFornecedor.findOne({ empresa }).lean();
+      if (est && Array.isArray(est.itens)) {
+        est.itens.forEach((i) => {
+          const chave = `${(i.nome || "").toLowerCase()}::${(i.unidade || "un").toLowerCase()}`;
+          estoqueMap.set(chave, Number(i.quantidade) || 0);
+        });
+      }
+      const catalogo = (doc.catalogo || []).map((item) => {
+        const nome = (item.nome || "").trim();
+        const unidade = (item.unidade || "").trim() || "un";
+        const chave = `${nome.toLowerCase()}::${unidade.toLowerCase()}`;
+        const disponivel = estoqueMap.get(chave) ?? 0;
+        return { ...item, disponivel };
+      });
+      resultado.push({ ...doc, catalogo });
+    }
+    return res.json(resultado);
   } catch (err) {
     console.error("❌ Erro ao listar catálogos de fornecedores:", err);
     return res.status(500).json({ error: "Erro interno ao listar catálogos de fornecedores." });

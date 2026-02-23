@@ -8,12 +8,20 @@ const API_BASE = process.env.REACT_APP_API_URL || "";
 
 const LARANJA = "#F6A46A";
 const VERDE = "#25C19B";
-const AZUL = "#2980b9";
+const LARANJA_DESTAQUE = "#FF8A00"; /* cor/borda; botões usam --gradient-btn-orange */
 const BORDER = "1px solid rgba(255,255,255,0.08)";
-const CARD_BG = "#161b22";
 
 function getFornecedor(p) {
   return (p.fornecedor || p.produtos?.[0]?.fornecedor || "").toString().trim() || "—";
+}
+
+/** Para rascunhos: lista de pedidos por fornecedor → exibe nomes dos fornecedores */
+function getFornecedoresRascunho(draft) {
+  const pedidos = draft?.pedidos || [];
+  const nomes = [...new Set(pedidos.map((x) => (x.fornecedor || "").toString().trim()).filter(Boolean))];
+  if (nomes.length === 0) return "Resumo (não enviado)";
+  if (nomes.length === 1) return nomes[0];
+  return nomes.join(", ");
 }
 
 function getItens(p) {
@@ -241,7 +249,7 @@ export default function MeusPedidos() {
       showCancelButton: true,
       confirmButtonText: "Sim, recebido",
       cancelButtonText: "Cancelar",
-      confirmButtonColor: "#25C19B",
+      confirmButtonColor: "#20b5a6",
     });
     if (!confirmar.isConfirmed) return;
 
@@ -265,7 +273,7 @@ export default function MeusPedidos() {
         title: "Concluído",
         text: "Pedido marcado como recebido. Os itens foram adicionados ao estoque.",
         icon: "success",
-        confirmButtonColor: "#25C19B",
+        confirmButtonColor: "#20b5a6",
       });
     } catch (erro) {
       console.error(erro);
@@ -287,7 +295,7 @@ export default function MeusPedidos() {
   }
 
   return (
-    <div style={{ width: "100%", maxWidth: "none", padding: "0 8px", boxSizing: "border-box" }}>
+    <div className="layout-content-inner" style={{ width: "100%", padding: 0, boxSizing: "border-box", color: "#e6edf3" }}>
       <Section
         titulo="Em aberto"
         cor={LARANJA}
@@ -301,18 +309,18 @@ export default function MeusPedidos() {
             const dataCriado = p.createdAt ? new Date(p.createdAt).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" }) : "";
             return (
               <PedidoCard
-                fornecedor="Resumo (não enviado)"
-                qtdItens={`${(p.pedidos || []).length} forn. • ${qtdItensRascunho} itens`}
+                fornecedor={getFornecedoresRascunho(p)}
+                qtdItens={qtdItensRascunho === 1 ? "1 item" : `${qtdItensRascunho} itens`}
                 total={totalRascunho}
                 status={dataCriado ? `Salvo em ${dataCriado}` : "Rascunho"}
                 corBorda={LARANJA}
                 acoes={
                   <>
-                    <button type="button" onClick={() => continuarRascunho(p)} style={styles.btnEnviar}>
-                      Continuar
+                    <button type="button" onClick={() => continuarRascunho(p)} style={styles.btnEnviar} title="Continuar">
+                      ✓
                     </button>
-                    <button type="button" onClick={() => excluirRascunho(p.id)} style={styles.btnExcluir}>
-                      Excluir
+                    <button type="button" onClick={() => excluirRascunho(p.id)} style={styles.btnExcluir} title="Excluir">
+                      ✕
                     </button>
                   </>
                 }
@@ -329,11 +337,11 @@ export default function MeusPedidos() {
               corBorda={LARANJA}
               acoes={
                 <>
-                  <button type="button" onClick={() => enviar(idxAbertas)} style={styles.btnEnviar}>
-                    Enviar
+                  <button type="button" onClick={() => enviar(idxAbertas)} style={styles.btnEnviar} title="Enviar">
+                    ✓
                   </button>
-                  <button type="button" onClick={() => excluir(idxAbertas)} style={styles.btnExcluir}>
-                    Excluir
+                  <button type="button" onClick={() => excluir(idxAbertas)} style={styles.btnExcluir} title="Excluir">
+                    ✕
                   </button>
                 </>
               }
@@ -387,7 +395,7 @@ export default function MeusPedidos() {
 
       <Section
         titulo="Concluídos"
-        cor={AZUL}
+        cor={LARANJA_DESTAQUE}
         lista={concluidas}
         emptyMsg="Nenhum pedido concluído."
         legenda="Pedidos concluídos há mais de 1 hora serão movidos automaticamente para o histórico de compras."
@@ -397,7 +405,7 @@ export default function MeusPedidos() {
             qtdItens={getQtdItens(p)}
             total={p.total}
             status={p.status}
-            corBorda={AZUL}
+            corBorda={LARANJA_DESTAQUE}
             extra={p.dataRecebimento ? `Recebido em ${new Date(p.dataRecebimento).toLocaleDateString("pt-BR")}` : null}
           />
         )}
@@ -431,11 +439,11 @@ function Section({ titulo, cor, lista, emptyMsg, legenda, renderCard }) {
 
 function PedidoCard({ fornecedor, qtdItens, total, status, corBorda, extra, acoes }) {
   return (
-    <div style={{ ...styles.card, borderLeft: `4px solid ${corBorda}` }}>
+    <div style={styles.card}>
       <div style={styles.cardGrid}>
         <div style={styles.cardItem}>
           <span style={styles.label}>Fornecedor</span>
-          <span style={styles.value}>{fornecedor}</span>
+          <span style={{ ...styles.value, textTransform: "uppercase" }}>{fornecedor}</span>
         </div>
         <div style={styles.cardItem}>
           <span style={styles.label}>Itens</span>
@@ -450,13 +458,12 @@ function PedidoCard({ fornecedor, qtdItens, total, status, corBorda, extra, acoe
           <span style={styles.value}>{status}</span>
         </div>
         {acoes && (
-          <div style={{ ...styles.cardItem, gridColumn: "1 / -1", display: "flex", alignItems: "center", justifyContent: "flex-start", gap: 12 }}>
-            <span style={styles.label} />
-            <div>{acoes}</div>
+          <div style={{ ...styles.cardItem, display: "flex", flexDirection: "row", alignItems: "center", justifyContent: "flex-end", gap: 12, minWidth: 120 }}>
+            {acoes}
           </div>
         )}
         {extra && (
-          <div style={styles.cardItem}>
+          <div style={{ ...styles.cardItem, gridColumn: "1 / -1" }}>
             <span style={styles.label} />
             <span style={styles.valueSmall}>{extra}</span>
           </div>
@@ -502,15 +509,11 @@ function PedidoCard({ fornecedor, qtdItens, total, status, corBorda, extra, acoe
     width: "100%",
   },
   card: {
-    background: CARD_BG,
-    border: BORDER,
-    borderRadius: 12,
     padding: "20px 24px",
-    boxShadow: "0 1px 2px rgba(0,0,0,0.2)",
   },
   cardGrid: {
     display: "grid",
-    gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))",
+    gridTemplateColumns: "repeat(4, minmax(120px, 1fr)) minmax(200px, auto)",
     gap: "14px 24px",
     alignItems: "center",
   },
@@ -543,30 +546,34 @@ function PedidoCard({ fornecedor, qtdItens, total, status, corBorda, extra, acoe
     justifyContent: "center",
   },
   btnEnviar: {
-    background: VERDE,
-    color: "#0d1117",
+    background: "var(--gradient-btn-primary)",
+    color: "#0F011E",
     border: "none",
-    borderRadius: 8,
-    padding: "10px 18px",
-    fontSize: "1rem",
-    fontWeight: 600,
+    borderRadius: 4,
+    padding: "10px 14px",
+    fontSize: "1.25rem",
+    fontWeight: 700,
     cursor: "pointer",
+    minWidth: 44,
+    lineHeight: 1,
   },
   btnExcluir: {
     background: "transparent",
     color: "#f85149",
     border: "1px solid rgba(248,81,73,0.5)",
-    borderRadius: 8,
-    padding: "10px 18px",
-    fontSize: "1rem",
-    fontWeight: 600,
+    borderRadius: 4,
+    padding: "10px 14px",
+    fontSize: "1.25rem",
+    fontWeight: 700,
     cursor: "pointer",
+    minWidth: 44,
+    lineHeight: 1,
   },
   btnRecebido: {
-    background: AZUL,
+    background: "var(--gradient-btn-orange)",
     color: "#fff",
     border: "none",
-    borderRadius: 8,
+    borderRadius: 4,
     padding: "10px 18px",
     fontSize: "1rem",
     fontWeight: 600,

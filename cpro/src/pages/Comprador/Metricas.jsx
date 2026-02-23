@@ -83,7 +83,7 @@ export default function MetricasComprador() {
 
   // ---------- RENDER ----------
   return (
-    <div style={{ width: "100%", maxWidth: "none", alignSelf: "stretch", padding: "0 8px", boxSizing: "border-box", color: "#e6edf3" }}>
+    <div className="layout-content-inner" style={{ width: "100%", padding: 0, boxSizing: "border-box", color: "#e6edf3" }}>
       <main style={mainWrap}>
         {/* KPIs principais */}
         <div style={cardsGrid}>
@@ -199,7 +199,7 @@ const btnSair = {
   background: "rgba(255,255,255,0.12)",
   color: "#fff",
   border: "none",
-  borderRadius: 8,
+  borderRadius: 4,
   padding: "8px 14px",
   cursor: "pointer",
   fontWeight: "bold",
@@ -224,7 +224,7 @@ const btnVoltar = {
   background: "#162232",
   color: "#fff",
   border: "none",
-  borderRadius: 8,
+  borderRadius: 4,
   padding: "10px 16px",
   cursor: "pointer",
   fontWeight: "bold",
@@ -239,16 +239,11 @@ const cardsGrid = {
 };
 
 const BORDER = "1px solid rgba(255,255,255,0.08)";
-const CARD_BG = "#161b22";
 
 const card = {
-  background: CARD_BG,
-  border: BORDER,
-  borderRadius: 12,
-  padding: 20,
+  padding: "20px 24px",
   color: "#e6edf3",
   textAlign: "center",
-  boxShadow: "0 1px 2px rgba(0,0,0,0.2)",
 };
 const cardLabel = { fontSize: "0.9375rem", marginBottom: 10, color: "#8b949e", textTransform: "uppercase", letterSpacing: "0.04em" };
 const cardValue = { fontSize: "1.8rem", fontWeight: 700, color: "#e6edf3" };
@@ -260,21 +255,15 @@ const chartGrid = {
   gap: 20,
 };
 const chartBox = {
-  background: CARD_BG,
-  border: BORDER,
-  borderRadius: 12,
   padding: 24,
-  boxShadow: "0 1px 2px rgba(0,0,0,0.2)",
   color: "#e6edf3",
+  borderLeft: "4px solid rgba(255,255,255,0.15)",
 };
 const chartBoxFull = {
   gridColumn: "1 / -1",
-  background: CARD_BG,
-  border: BORDER,
-  borderRadius: 12,
   padding: 24,
-  boxShadow: "0 1px 2px rgba(0,0,0,0.2)",
   color: "#e6edf3",
+  borderLeft: "4px solid rgba(255,255,255,0.15)",
 };
 const chartTitle = {
   marginBottom: 16,

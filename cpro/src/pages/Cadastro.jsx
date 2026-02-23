@@ -170,11 +170,11 @@ const styles = {
   btnPrimary: {
     marginTop: 15,
     padding: 10,
-    backgroundColor: "#0066ff",
-    color: "#fff",
+    background: "var(--gradient-btn-primary)",
+    color: "#0F011E",
     border: "none",
     cursor: "pointer",
-    borderRadius: 5,
+    borderRadius: 4,
   },
   btnPrimaryDisabled: {
     opacity: 0.7,
@@ -186,7 +186,7 @@ const styles = {
     backgroundColor: "transparent",
     border: "1px solid #0066ff",
     color: "#0066ff",
-    borderRadius: 5,
+    borderRadius: 4,
     cursor: "pointer",
   },
 };

@@ -7,7 +7,6 @@ import Swal from "sweetalert2";
 const API_URL = process.env.REACT_APP_API_URL || "http://localhost:4001";
 const WORK_KEY = "resumo_cotacao_working_v1";
 const BORDER = "1px solid rgba(255,255,255,0.08)";
-const CARD_BG = "#161b22";
 const { getDocument, GlobalWorkerOptions, version: pdfjsVersion } = pdfjsLib;
 GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsVersion}/pdf.worker.min.js`;
 function normalizarUnidade(item) {
@@ -470,274 +469,209 @@ function getStatus(produto) {
   }, [filtrados]);
   // ---------- RENDER ----------
   return (
-    <div style={{ width: "100%", maxWidth: "none", margin: 0, padding: "0 8px", boxSizing: "border-box", color: "#e6edf3" }}>
-      <main style={mainWrap}>
-        <p style={{ marginBottom: 16, color: "#8b949e", fontSize: "0.95rem" }}>
-          Itens abaixo do estoque mínimo. As quantidades são preenchidas automaticamente até o máximo para itens com mínimo e máximo definidos na página Estoque; os demais ficam em zero para você ajustar. Clique em &quot;Gerar Resumo&quot; quando terminar.
-        </p>
-        <div style={tableCard}>
-          {/* Linha 1 - Ir para Estoque */}
-          <div style={{ marginBottom: 10, textAlign: "left" }}>
-          
-          </div>
+    <div className="layout-content-inner" style={{ width: "100%", padding: 0, boxSizing: "border-box", color: "#e6edf3", background: "transparent" }}>
+      {/* Barra de ações (igual Fornecedores) */}
+      <div style={styles.actions}>
+        <input
+          type="text"
+          placeholder="Pesquisar produto..."
+          value={busca}
+          onChange={(e) => setBusca(e.target.value)}
+          style={styles.inputBusca}
+        />
+        <label style={{ display: "flex", alignItems: "center", gap: 8, color: "#8b949e", fontSize: "0.9375rem" }}>
+          <span>Seção:</span>
+          <select
+            value={filtroSecao === "todas" ? "todas" : filtroSecao}
+            onChange={(e) => setFiltroSecao(e.target.value === "todas" ? "todas" : e.target.value)}
+            style={styles.selectSecao}
+          >
+            {secoesDisponiveis.map((s) => (
+              <option key={s} value={s === "Todas as seções" ? "todas" : s}>
+                {s}
+              </option>
+            ))}
+          </select>
+        </label>
+        <button
+          onClick={async () => {
+            const selecionados = catalogo.filter((p) => (p.qty || 0) > 0);
+            if (selecionados.length === 0) {
+              Swal.fire("Aviso", "Selecione ao menos um produto para cotar.", "info");
+              return;
+            }
+            const comQuantidadeZero = catalogo.filter((p) => (p.qty || 0) === 0);
+            if (comQuantidadeZero.length > 0) {
+              const confirmar = await Swal.fire({
+                title: "Produtos com estoque baixo",
+                html: `Existem <strong>${comQuantidadeZero.length} produto(s)</strong> com quantidade zero que <strong>não entrarão no pedido</strong>. Deseja fazer o pedido mesmo assim?`,
+                icon: "warning",
+                showCancelButton: true,
+                confirmButtonText: "Sim, fazer pedido",
+                cancelButtonText: "Cancelar",
+              });
+              if (!confirmar.isConfirmed) return;
+            }
+            try {
+              const novosItens = selecionados.map((p) => ({
+                nome: p.nome,
+                unidade: p.unidade,
+                qtd: p.qty,
+              }));
+              const resp = await fetch(`${API_URL}/api/itens-cotacao`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ comprador: empresa, itens: novosItens }),
+              });
+              if (!resp.ok) throw new Error("Erro ao salvar cotação");
+              Swal.fire({
+                title: "Cotação gerada!",
+                text: `${novosItens.length} produto(s) enviados para o resumo.`,
+                icon: "success",
+                confirmButtonText: "Ver Resumo",
+              }).then(() => navigate("/resumo-cotacao"));
+            } catch (err) {
+              console.error(err);
+              Swal.fire("Erro", "Falha ao enviar cotação ao servidor.", "error");
+            }
+          }}
+          style={styles.btnPrimario}
+        >
+          Gerar Resumo
+        </button>
+      </div>
 
-          {/* Linha 2 - Gerar Resumo */}
-          <div style={{ marginBottom: 15, textAlign: "right" }}>
+      <p style={styles.legenda}>
+        Itens abaixo do estoque mínimo. As quantidades são preenchidas automaticamente até o máximo para itens com mínimo e máximo definidos na página Estoque; os demais ficam em zero para você ajustar. Clique em &quot;Gerar Resumo&quot; quando terminar.
+      </p>
+
+      {/* Formulário: importar + adicionar produto (igual Fornecedores) */}
+      <div style={styles.formCard}>
+        <input
+          type="file"
+          onChange={handleImportFile}
+          style={styles.inputFile}
+        />
+        {preview.length > 0 && (
+          <>
+            <span style={{ marginRight: 8 }}>Pré-visualização ({preview.length} itens)</span>
+            <button type="button" onClick={confirmarImportacao} style={styles.btnSecundario}>
+              Confirmar Importação
+            </button>
             <button
-              onClick={async () => {
-  const selecionados = catalogo.filter((p) => (p.qty || 0) > 0);
-  if (selecionados.length === 0) {
-    Swal.fire("Aviso", "Selecione ao menos um produto para cotar.", "info");
-    return;
-  }
-
-  const comQuantidadeZero = catalogo.filter((p) => (p.qty || 0) === 0);
-  if (comQuantidadeZero.length > 0) {
-    const confirmar = await Swal.fire({
-      title: "Produtos com estoque baixo",
-      html: `Existem <strong>${comQuantidadeZero.length} produto(s)</strong> com quantidade zero que <strong>não entrarão no pedido</strong>. Deseja fazer o pedido mesmo assim?`,
-      icon: "warning",
-      showCancelButton: true,
-      confirmButtonText: "Sim, fazer pedido",
-      cancelButtonText: "Cancelar",
-    });
-    if (!confirmar.isConfirmed) return;
-  }
-
-  try {
-    const novosItens = selecionados.map((p) => ({
-      nome: p.nome,
-      unidade: p.unidade,
-      qtd: p.qty,
-    }));
-
-    const resp = await fetch(`${API_URL}/api/itens-cotacao`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ comprador: empresa, itens: novosItens }),
-    });
-
-    if (!resp.ok) throw new Error("Erro ao salvar cotação");
-
-    Swal.fire({
-      title: "Cotação gerada!",
-      text: `${novosItens.length} produto(s) enviados para o resumo.`,
-      icon: "success",
-      confirmButtonText: "Ver Resumo",
-    }).then(() => navigate("/resumo-cotacao"));
-  } catch (err) {
-    console.error(err);
-    Swal.fire("Erro", "Falha ao enviar cotação ao servidor.", "error");
-  }
-}}
-
-              style={btnPrimario}
+              type="button"
+              onClick={() => { setPreview([]); alert("Importação cancelada."); }}
+              style={styles.btnExcluir}
             >
-              Gerar Resumo
+              Cancelar
             </button>
-          </div>
+          </>
+        )}
+        <form onSubmit={handleAddProduto} style={{ display: "contents" }}>
+          <input
+            type="text"
+            placeholder="Nome do produto"
+            value={novoProduto.nome}
+            onChange={(e) => setNovoProduto({ ...novoProduto, nome: e.target.value })}
+            style={styles.input}
+            className="campo-fundo-claro"
+          />
+          <input
+            type="text"
+            placeholder="Unidade"
+            value={novoProduto.unidade}
+            onChange={(e) => setNovoProduto({ ...novoProduto, unidade: e.target.value })}
+            style={{ ...styles.input, minWidth: 80 }}
+            className="campo-fundo-claro"
+          />
+          <button type="submit" style={styles.btnPrincipal}>
+            ➕ Adicionar
+          </button>
+        </form>
+      </div>
 
-          {/* Linha 3 - Buscar produto e filtrar por seção */}
-          <div style={{ marginBottom: 15, display: "flex", flexWrap: "wrap", gap: 12, alignItems: "center" }}>
-            <input
-              type="text"
-              placeholder="Pesquisar produto..."
-              value={busca}
-              onChange={(e) => setBusca(e.target.value)}
-              style={inputBusca}
-              className="campo-fundo-claro"
-            />
-            <label style={{ display: "flex", alignItems: "center", gap: 8, color: "#8b949e", fontSize: "0.9375rem" }}>
-              <span>Seção:</span>
-              <select
-                value={filtroSecao === "todas" ? "todas" : filtroSecao}
-                onChange={(e) => setFiltroSecao(e.target.value === "todas" ? "todas" : e.target.value)}
-                style={{
-                  padding: "8px 12px",
-                  borderRadius: 8,
-                  border: BORDER,
-                  background: CARD_BG,
-                  color: "#e6edf3",
-                  minWidth: 180,
-                }}
-                className="campo-fundo-claro"
-              >
-                {secoesDisponiveis.map((s) => (
-                  <option key={s} value={s === "Todas as seções" ? "todas" : s}>
-                    {s}
-                  </option>
-                ))}
-              </select>
-            </label>
-          </div>
+      <div style={{ marginBottom: 20, display: "flex", justifyContent: "flex-end" }}>
+        <button type="button" onClick={handleDeleteTodos} style={styles.btnExcluir}>
+          Excluir Todos
+        </button>
+      </div>
 
-          {/* Linha 4 - Importar arquivo */}
-          <div style={{ marginBottom: 20 }}>
-            <input 
-              type="file" 
-              onChange={handleImportFile}
-              style={{
-                padding: "8px",
-                borderRadius: 8,
-                border: BORDER,
-                background: CARD_BG,
-                color: "#e6edf3",
-                cursor: "pointer",
-              }}
-            />
-          </div>
-
-          {/* Pré-visualização */}
-          {preview.length > 0 && (
-            <div style={previewBox}>
-              <h3 style={{ color: "#e6edf3", marginBottom: 12 }}>Pré-visualização ({preview.length} itens)</h3>
-              {preview.map((it, i) => (
-                <p key={i} style={{ color: "#8b949e", marginBottom: 4 }}>{it.nome}</p>
-              ))}
-              <button onClick={confirmarImportacao} style={btnAdd}>
-                Confirmar Importação
-              </button>
-              <button
-                onClick={() => {
-                  setPreview([]);
-                  alert("Importação cancelada.");
-                }}
-                style={btnCancelarImport}
-              >
-                ❌ Cancelar Importação
-              </button>
-            </div>
-          )}
-
-          {/* Adicionar manual */}
-          <form onSubmit={handleAddProduto} style={formAdd}>
-            <input
-              style={inputNome}
-              type="text"
-              placeholder="Nome do produto"
-              value={novoProduto.nome}
-              onChange={(e) => setNovoProduto({ ...novoProduto, nome: e.target.value })}
-              className="campo-fundo-claro"
-            />
-            <input
-              style={inputUnidade}
-              type="text"
-              placeholder="Unidade"
-              value={novoProduto.unidade}
-              onChange={(e) => setNovoProduto({ ...novoProduto, unidade: e.target.value })}
-              className="campo-fundo-claro"
-            />
-            <button type="submit" style={btnAdd}>+</button>
-          </form>
-
-          <div style={{ marginBottom: 20, display: "flex", justifyContent: "flex-end" }}>
-            <button onClick={handleDeleteTodos} style={btnExcluirTodos}>
-              Excluir Todos
-            </button>
-          </div>
-
-          {/* Lista de produtos agrupada por seção (como no Meu Catálogo) */}
-          {filtrados.length === 0 ? (
-            <div style={emptyBox}>
-              <p>Nenhum produto encontrado.</p>
-            </div>
-          ) : (
-            <div style={lista}>
+      {filtrados.length === 0 ? (
+        <p style={styles.empty}>Nenhum produto encontrado.</p>
+      ) : (
+        <div style={styles.cardList}>
               {produtosPorSecao.map((grupo) => (
                 <div key={grupo.secao} style={{ marginBottom: 24 }}>
-                  <div
-                    style={{
-                      padding: "10px 16px",
-                      background: "rgba(255,255,255,0.06)",
-                      borderRadius: "8px 8px 0 0",
-                      border: BORDER,
-                      borderBottom: "none",
-                      fontWeight: 600,
-                      color: "#e6edf3",
-                      fontSize: "1rem",
-                    }}
-                  >
+                  <div style={styles.sectionHeader}>
                     Seção: {grupo.secao} — {grupo.produtos.length} {grupo.produtos.length === 1 ? "produto" : "produtos"}
                   </div>
                   {grupo.produtos.map((p) => {
                     const i = (catalogo || []).indexOf(p);
                     if (i < 0) return null;
                     return (
-                      <div
-                        key={`${grupo.secao}-${p.nome}-${i}`}
-                        style={{
-                          display: "flex",
-                          alignItems: "center",
-                          gap: 8,
-                          padding: "12px 16px",
-                          borderRadius: 0,
-                          background: CARD_BG,
-                          borderLeft: BORDER,
-                          borderRight: BORDER,
-                          borderBottom: BORDER,
-                        }}
-                      >
-                        <input
-                          value={p.nome}
-                          onChange={(e) => handleUpdate(i, "nome", e.target.value)}
-                          style={colNome}
-                          className="campo-fundo-claro"
-                        />
-
-                        <span
-                          title={`Ir para o estoque de ${p.nome}`}
-                          onClick={() =>
-                            (window.location.href = `/estoque?produto=${encodeURIComponent(p.nome)}`)
-                          }
-                          style={{
-                            display: "inline-block",
-                            width: 16,
-                            height: 16,
-                            borderRadius: "50%",
-                            backgroundColor: getStatus(p),
-                            marginRight: 6,
-                            cursor: "pointer",
-                          }}
-                        ></span>
-
-                        <input
-                          value={p.unidade || ""}
-                          onChange={(e) => handleUpdate(i, "unidade", e.target.value)}
-                          style={colUnidade}
-                          className="campo-fundo-claro"
-                        />
-
-                        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      <div key={`${grupo.secao}-${p.nome}-${i}`} style={styles.cardRow}>
+                        <div style={styles.cardItem}>
+                          <span style={styles.label}>Produto</span>
                           <input
-                            type="number"
-                            min="0"
-                            step="1"
-                            value={p.qty || 0}
-                            onChange={(e) => handleEditarQuantidade(i, Number(e.target.value))}
-                            style={qtyInput}
+                            value={p.nome}
+                            onChange={(e) => handleUpdate(i, "nome", e.target.value)}
+                            style={styles.inputInline}
                             className="campo-fundo-claro"
                           />
-                          <button onClick={() => adicionarMontante(i)} style={btnMontante}>
-                            +Cx
+                        </div>
+                        <div style={{ ...styles.cardItem, minWidth: 60 }}>
+                          <span style={styles.label}>Status</span>
+                          <span
+                            title={`Ir para o estoque de ${p.nome}`}
+                            onClick={() =>
+                              (window.location.href = `/estoque?produto=${encodeURIComponent(p.nome)}`)
+                            }
+                            style={{
+                              display: "inline-block",
+                              width: 16,
+                              height: 16,
+                              borderRadius: "50%",
+                              backgroundColor: getStatus(p),
+                              cursor: "pointer",
+                            }}
+                          />
+                        </div>
+                        <div style={{ ...styles.cardItem, minWidth: 80 }}>
+                          <span style={styles.label}>Unidade</span>
+                          <input
+                            value={p.unidade || ""}
+                            onChange={(e) => handleUpdate(i, "unidade", e.target.value)}
+                            style={styles.inputInline}
+                            className="campo-fundo-claro"
+                          />
+                        </div>
+                        <div style={{ ...styles.cardItem, minWidth: 100 }}>
+                          <span style={styles.label}>Qtd</span>
+                          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                            <input
+                              type="number"
+                              min="0"
+                              step="1"
+                              value={p.qty || 0}
+                              onChange={(e) => handleEditarQuantidade(i, Number(e.target.value))}
+                              style={styles.qtyInput}
+                              className="campo-fundo-claro"
+                            />
+                            <button type="button" onClick={() => adicionarMontante(i)} style={styles.btnMontante}>
+                              +Cx
+                            </button>
+                          </div>
+                        </div>
+                        <div style={styles.cardItemExcluir}>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteProduto(i)}
+                            style={styles.btnExcluir}
+                            title="Excluir produto"
+                          >
+                            🗑 Excluir
                           </button>
                         </div>
-
-                        <button
-                          onClick={() => handleDeleteProduto(i)}
-                          style={btnDelete}
-                          type="button"
-                          title="Excluir produto"
-                        >
-                          <svg
-                            xmlns="http://www.w3.org/2000/svg"
-                            viewBox="0 0 24 24"
-                            width="16"
-                            height="16"
-                            fill="#fff"
-                          >
-                            <path d="M9 3V4H4V6H5V19C5 20.1 5.9 21 7 21H17C18.1 21 19 20.1 19 19V6H20V4H15V3H9ZM7 6H17V19H7V6ZM9 8V17H11V8H9ZM13 8V17H15V8H13Z" />
-                          </svg>
-                        </button>
                       </div>
                     );
                   })}
@@ -745,222 +679,180 @@ function getStatus(produto) {
               ))}
             </div>
           )}
-        </div>
-      </main>
     </div>
   );
 }
-const pageOuter = {
-  background: "#0F2D3F",             // 🔹 fundo novo
-  minHeight: "100vh",
-  color: "#fff",
-};
-const topBar = {
-  position: "sticky",
-  top: 0,
-  zIndex: 20,
-  background: "#0F2D3F",
-  height: 66,                        // ajuste a altura aqui se quiser
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "space-between",
-  padding: "0 28px",
-};
-const topLeft = {
-  display: "flex",
-  alignItems: "center",
-  gap: 14,
-};
-const helloText = {
-  fontSize: "1rem",
-  opacity: 0.95,
-};
-const btnSair = {
-  background: "rgba(255,255,255,0.12)",
-  color: "#fff",
-  border: "none",
-  borderRadius: 8,
-  padding: "8px 14px",
-  cursor: "pointer",
-  fontWeight: "bold",
-};
-const mainWrap = {
-  width: "100%",
-  margin: "24px 0 40px",
-  padding: "0 12px 40px",
-};
-const tableCard = {
-  width: "100%",
-  background: CARD_BG,
-  border: BORDER,
-  borderRadius: 12,
-  boxShadow: "0 1px 2px rgba(0,0,0,0.2)",
-  padding: 20,
-  color: "#e6edf3",
-};
-const titleNew = {
-  textAlign: "center",
-  color: "#ffffff",
-  margin: "8px 0 16px",
-  fontSize: "3rem",
-  fontWeight: 700,
-};
-const btnVoltar = {
-  background: "#FF8882",
-  color: "#fff",
-  border: "none",
-  borderRadius: 8,
-  padding: "10px 16px",
-  cursor: "pointer",
-  fontWeight: "bold",
-  boxShadow: "0 2px 6px rgba(0,0,0,0.2)",
-};
-const btnIrEstoque = {
-  background: "#25C19B",
-  color: "#162232",
-  border: "none",
-  borderRadius: 8,
-  padding: "10px 16px",
-  cursor: "pointer",
-  fontWeight: "bold",
-};
-const btnPrimario = {
-  background: "#25C19B",
-  color: "#0B1C26",
-  border: "none",
-  borderRadius: 8,
-  padding: "10px 18px",
-  cursor: "pointer",
-  fontWeight: "bold",
-};
-const inputBusca = {
-  width: "100%",
-  padding: "10px 12px",
-  borderRadius: 8,
-  border: BORDER,
-  fontSize: "0.9375rem",
-  background: "#fff",
-  color: "#1a1a1a",
-};
-const previewBox = {
-  background: CARD_BG,
-  border: BORDER,
-  borderRadius: 10,
-  boxShadow: "0 1px 2px rgba(0,0,0,0.2)",
-  padding: 16,
-  marginBottom: 12,
-  color: "#e6edf3",
-};
-const btnCancelarImport = {
-  background: "#FF8882",
-  color: "#fff",
-  border: "none",
-  borderRadius: 8,
-  padding: "8px 12px",
-  cursor: "pointer",
-  margin: "4px",
-};
-const formAdd = {
-  display: "flex",
-  gap: 8,
-  marginBottom: 12,
-  alignItems: "center",
-};
-const inputNome = {
-  flex: 3,
-  padding: "10px 12px",
-  borderRadius: 8,
-  border: BORDER,
-  background: "#fff",
-  color: "#1a1a1a",
-};
-const inputUnidade = {
-  flex: 1,
-  padding: "10px 12px",
-  borderRadius: 8,
-  border: BORDER,
-  textAlign: "center",
-  background: "#fff",
-  color: "#1a1a1a",
-};
-const btnAdd = {
-  background: "#FF8882",
-  color: "#162232",
-  border: "none",
-  borderRadius: 8,
-  padding: "8px 12px",
-  cursor: "pointer",
-  fontWeight: "bold",
-};
-const btnExcluirTodos = {
-  background: "#F6A46A",
-  color: "#fff",
-  border: "none",
-  borderRadius: 8,
-  padding: "10px 16px",
-  cursor: "pointer",
-  fontWeight: "bold",
-  marginTop: 8,
-};
-const lista = {
-  display: "flex",
-  flexDirection: "column",
-  gap: 6,
-  marginTop: 10,
-};
-const colNome = {
-  flex: 3,
-  border: BORDER,
-  borderRadius: 8,
-  background: "#fff",
-  padding: "8px 12px",
-  color: "#1a1a1a",
-};
-const colUnidade = {
-  flex: 1,
-  border: BORDER,
-  borderRadius: 8,
-  background: "#fff",
-  textAlign: "center",
-  padding: "8px 12px",
-  color: "#1a1a1a",
-};
-const qtyInput = {
-  width: 90,
-  textAlign: "center",
-  borderRadius: 8,
-  border: BORDER,
-  padding: "8px 10px",
-  fontWeight: "bold",
-  background: "#fff",
-  color: "#1a1a1a",
-};
-const btnMontante = {
-  background: "#25C19B",
-  color: "#fff",
-  border: "none",
-  borderRadius: 8,
-  padding: "8px 12px",
-  cursor: "pointer",
-  fontWeight: "bold",
-};
-const btnDelete = {
-  width: 34,
-  height: 34,
-  background: "#FF8882",
-  border: "none",
-  borderRadius: "50%",
-  cursor: "pointer",
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "center",
-};
-const emptyBox = {
-  background: CARD_BG,
-  border: BORDER,
-  padding: 20,
-  borderRadius: 10,
-  textAlign: "center",
-  color: "#8b949e",
-  fontStyle: "italic",
+// Estilos alinhados à página Fornecedores
+const styles = {
+  actions: {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 20,
+    flexWrap: "wrap",
+    gap: 10,
+  },
+  inputBusca: {
+    flex: 2,
+    padding: "10px 12px",
+    borderRadius: 4,
+    border: BORDER,
+    minWidth: 200,
+    background: "rgba(0,0,0,0.2)",
+    color: "#e6edf3",
+    fontSize: "1rem",
+  },
+  selectSecao: {
+    padding: "8px 12px",
+    borderRadius: 4,
+    border: BORDER,
+    background: "rgba(0,0,0,0.2)",
+    color: "#e6edf3",
+    minWidth: 180,
+  },
+  btnPrimario: {
+    background: "var(--gradient-btn-primary)",
+    color: "#0B1C26",
+    border: "none",
+    borderRadius: 4,
+    padding: "10px 18px",
+    cursor: "pointer",
+    fontWeight: 600,
+    fontSize: "1rem",
+  },
+  legenda: {
+    marginBottom: 20,
+    color: "#8b949e",
+    fontSize: "0.95rem",
+  },
+  formCard: {
+    padding: "20px 0 24px",
+    marginBottom: 24,
+    display: "flex",
+    flexWrap: "wrap",
+    gap: 12,
+    alignItems: "center",
+  },
+  inputFile: {
+    padding: "8px",
+    borderRadius: 4,
+    border: BORDER,
+    background: "rgba(0,0,0,0.2)",
+    color: "#e6edf3",
+    cursor: "pointer",
+  },
+  btnSecundario: {
+    background: "var(--gradient-btn-primary)",
+    color: "#0B1C26",
+    border: "none",
+    borderRadius: 4,
+    padding: "8px 14px",
+    cursor: "pointer",
+    fontWeight: 600,
+  },
+  btnExcluir: {
+    background: "transparent",
+    color: "#f85149",
+    border: "1px solid rgba(248,81,73,0.5)",
+    borderRadius: 4,
+    padding: "8px 16px",
+    cursor: "pointer",
+    fontWeight: 600,
+    fontSize: "0.9375rem",
+  },
+  input: {
+    flex: 1,
+    minWidth: 150,
+    padding: "10px 12px",
+    borderRadius: 4,
+    border: BORDER,
+    background: "transparent",
+    color: "#e6edf3",
+    fontSize: "0.9375rem",
+  },
+  btnPrincipal: {
+    background: "var(--gradient-btn-orange)",
+    color: "#fff",
+    border: "none",
+    borderRadius: 4,
+    padding: "10px 18px",
+    cursor: "pointer",
+    fontWeight: 600,
+    fontSize: "1rem",
+  },
+  empty: {
+    color: "#8b949e",
+    fontStyle: "italic",
+    fontSize: "1.0625rem",
+    textAlign: "center",
+    marginTop: 24,
+  },
+  cardList: {
+    display: "flex",
+    flexDirection: "column",
+    gap: 14,
+  },
+  cardRow: {
+    display: "flex",
+    flexWrap: "wrap",
+    alignItems: "flex-end",
+    gap: "14px 24px",
+    padding: "20px 24px",
+    borderBottom: BORDER,
+  },
+  cardItem: {
+    display: "flex",
+    flexDirection: "column",
+    gap: 6,
+    minWidth: 140,
+    flex: "1 1 140px",
+  },
+  cardItemExcluir: {
+    display: "flex",
+    alignItems: "flex-end",
+    marginLeft: "auto",
+  },
+  label: {
+    fontSize: "0.8125rem",
+    color: "#8b949e",
+    textTransform: "uppercase",
+    letterSpacing: "0.04em",
+  },
+  inputInline: {
+    width: "100%",
+    padding: "8px 10px",
+    borderRadius: 4,
+    border: BORDER,
+    background: "transparent",
+    color: "#e6edf3",
+    fontSize: "0.9375rem",
+  },
+  qtyInput: {
+    width: 70,
+    textAlign: "center",
+    borderRadius: 4,
+    border: BORDER,
+    padding: "8px 10px",
+    fontWeight: 600,
+    background: "transparent",
+    color: "#e6edf3",
+    fontSize: "0.9375rem",
+  },
+  btnMontante: {
+    background: "var(--gradient-btn-primary)",
+    color: "#0B1C26",
+    border: "none",
+    borderRadius: 4,
+    padding: "8px 12px",
+    cursor: "pointer",
+    fontWeight: 600,
+  },
+  sectionHeader: {
+    padding: "10px 0",
+    fontWeight: 600,
+    color: "#e6edf3",
+    fontSize: "1rem",
+    borderBottom: BORDER,
+    marginBottom: 8,
+  },
 };

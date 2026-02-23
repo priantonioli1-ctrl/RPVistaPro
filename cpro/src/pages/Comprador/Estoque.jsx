@@ -340,7 +340,7 @@ sessionStorage.setItem("itensCotacao", JSON.stringify(itensParaCotacao));
     title: "Produtos abaixo do estoque mínimo:",
     html: `<ul style='text-align:left'>${listaHtml}</ul>`,
     confirmButtonText: "Gerar Resumo de Cotação",
-    confirmButtonColor: "#25C19B",
+    confirmButtonColor: "#20b5a6",
   }).then((r) => {
     if (r.isConfirmed) {
       // 🔹 Redireciona para a página de Resumo
@@ -353,7 +353,7 @@ if (!usuarioAtual) {
 }
   // ------------------ RENDER ------------------
   return (
-    <div style={{ maxWidth: 1200, margin: "0 auto", color: "#e6edf3" }}>
+    <div className="layout-content-inner" style={{ maxWidth: "100%", margin: 0, color: "#e6edf3" }}>
       <main style={mainWrap}>
 {/* ---------- BOTÕES SUPERIORES (CENTRALIZADOS) ---------- */}
 <div
@@ -372,7 +372,7 @@ if (!usuarioAtual) {
 
           <form
             onSubmit={registrarEntrada}
-            style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 20 }}
+            style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 20, alignItems: "center" }}
           >
             <select
               value={entrada.produto}
@@ -424,7 +424,7 @@ if (!usuarioAtual) {
               style={inputSmall}
             />
 
-            <button type="submit" style={btnEntrada}>
+            <button type="submit" style={{ ...btnEntrada, marginLeft: "auto" }}>
               Confirmar Entrada
             </button>
           </form>
@@ -494,7 +494,7 @@ if (!usuarioAtual) {
                           padding: "6px 8px",
                           textAlign: "center",
                           background: "rgba(255,255,255,0.08)",
-                          borderRadius: 6,
+                          borderRadius: 4,
                           color: "#e6edf3",
                           fontWeight: 500,
                         }}
@@ -512,7 +512,7 @@ if (!usuarioAtual) {
                             padding: "6px 8px",
                             textAlign: "center",
                             background: "rgba(255,255,255,0.08)",
-                            borderRadius: 6,
+                            borderRadius: 4,
                             color: "#e6edf3",
                             fontWeight: 500,
                           }}
@@ -553,7 +553,7 @@ const btnSair = {
   background: "rgba(255,255,255,0.12)",
   color: "#fff",
   border: "none",
-  borderRadius: 8,
+  borderRadius: 4,
   padding: "8px 14px",
   cursor: "pointer",
   fontWeight: "bold",
@@ -564,66 +564,60 @@ const btnVoltar = {
   background: "#162232",
   color: "#fff",
   border: "none",
-  borderRadius: 8,
+  borderRadius: 4,
   padding: "10px 16px",
   cursor: "pointer",
   fontWeight: "bold",
 };
 const btnIrEstoque = {
-  background: "#8bbae6",
-  color: "#162232",
+  background: "var(--gradient-btn-orange)",
+  color: "#fff",
   border: "none",
-  borderRadius: 8,
+  borderRadius: 4,
   padding: "10px 16px",
   cursor: "pointer",
   fontWeight: "bold",
 };
 const BORDER = "1px solid rgba(255,255,255,0.08)";
-const CARD_BG = "#161b22";
 
 const entradaBox = {
-  background: CARD_BG,
-  border: BORDER,
   padding: 20,
-  borderRadius: 12,
   marginBottom: 24,
-  boxShadow: "0 1px 2px rgba(0,0,0,0.2)",
   color: "#e6edf3",
+  background: "transparent",
+  borderBottom: BORDER,
 };
 const inputSelect = {
   flex: 2,
   padding: "10px 12px",
-  borderRadius: 8,
+  borderRadius: 4,
   border: BORDER,
-  background: "#fff",
-  color: "#1a1a1a",
+  background: "transparent",
+  color: "#e6edf3",
   fontSize: "0.9375rem",
 };
 const inputSmall = {
   flex: 1,
   padding: "10px 12px",
-  borderRadius: 8,
+  borderRadius: 4,
   border: BORDER,
-  background: "#fff",
-  color: "#1a1a1a",
+  background: "transparent",
+  color: "#e6edf3",
   fontSize: "0.9375rem",
 };
 const btnEntrada = {
-  background: "#2980b9",
-  color: "#fff",
+  background: "var(--gradient-btn-primary)",
+  color: "#0B1C26",
   border: "none",
-  borderRadius: 8,
+  borderRadius: 4,
   padding: "10px 18px",
   cursor: "pointer",
   fontSize: "1rem",
   fontWeight: 600,
 };
 const tabelaBox = {
-  background: CARD_BG,
-  border: BORDER,
-  borderRadius: 12,
-  boxShadow: "0 1px 2px rgba(0,0,0,0.2)",
   overflowX: "auto",
+  marginBottom: 24,
 };
 const table = { width: "100%", borderCollapse: "collapse", background: "transparent" };
 const th = { 
@@ -646,9 +640,9 @@ const inputNum = {
   width: "60px", 
   padding: "6px 8px", 
   textAlign: "center", 
-  borderRadius: 6, 
+  borderRadius: 4, 
   border: BORDER,
-  background: "#fff",
-  color: "#1a1a1a",
+  background: "transparent",
+  color: "#e6edf3",
   fontSize: "0.9375rem",
 };

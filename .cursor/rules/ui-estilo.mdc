@@ -1,0 +1,14 @@
+---
+description: Convenções de estilo visual para as páginas do RPVistaPro
+globs: cpro/src/**/*.jsx
+alwaysApply: false
+---
+
+# Estilo visual - Bordas laterais
+
+## Não usar linha laranja como borda lateral
+
+Não aplicar borda lateral laranja (`borderLeft: "4px solid #F6A46A"` ou similar) em cards, painéis ou blocos de conteúdo.
+
+- **Evitar:** `borderLeft: "4px solid #F6A46A"`
+- **Alternativas:** Usar bordas neutras (ex: `rgba(255,255,255,0.15)`), outras cores do tema, ou nenhuma borda.

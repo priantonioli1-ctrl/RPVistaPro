@@ -249,3 +249,90 @@ export async function enviarNotificacaoPedidoAprovado(emailComprador, nomeCompra
     return false;
   }
 }
+
+/**
+ * Envia proposta/contrato em PDF por email para o cliente
+ */
+export async function enviarPropostaContrato(emailCliente, nomeCliente, proposta, pdfBase64) {
+  try {
+    const transporter = createTransporter();
+    const nomeClienteStr = nomeCliente || "Cliente";
+    const valorTotal = proposta.valorTotal
+      ? new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(proposta.valorTotal)
+      : "—";
+    const dataEvento = proposta.dados?.dataEvento
+      ? new Date(proposta.dados.dataEvento + "T12:00:00").toLocaleDateString("pt-BR", { day: "2-digit", month: "long", year: "numeric" })
+      : "—";
+    const tipoNome = proposta.tipoProposta?.nome || "Proposta";
+
+    const buffer = Buffer.from(pdfBase64, "base64");
+    const nomeSlug = (proposta.dados?.nome || "cliente")
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/\s+/g, "-")
+      .replace(/[^a-z0-9-]/g, "") || "contrato";
+    const festaSlug = (proposta.dados?.tipoEvento || "proposta")
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/\s+/g, "-")
+      .replace(/[^a-z0-9-]/g, "") || "contrato";
+    const nomeArquivo = `${nomeSlug}-${festaSlug}.pdf`;
+
+    await transporter.sendMail({
+      from: process.env.EMAIL_FROM || process.env.EMAIL_USER || "noreply@rpvistapro.com.br",
+      to: emailCliente,
+      subject: `Contrato de Proposta - ${tipoNome}`,
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #0d1117; color: #e6edf3;">
+          <div style="text-align: center; margin-bottom: 30px;">
+            <h1 style="color: #58a6ff;">RP Vista Pro</h1>
+          </div>
+          
+          <div style="background-color: #161b22; padding: 30px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.08);">
+            <h2 style="color: #e6edf3; margin-top: 0;">Olá, ${nomeClienteStr}!</h2>
+            
+            <p style="color: #c9d1d9; line-height: 1.6;">
+              Segue em anexo o contrato da sua proposta para o evento.
+            </p>
+            
+            <div style="background-color: #0d1117; padding: 20px; border-radius: 6px; margin: 20px 0;">
+              <p style="color: #e6edf3; margin: 5px 0;"><strong>Tipo:</strong> ${tipoNome}</p>
+              <p style="color: #e6edf3; margin: 5px 0;"><strong>Data do evento:</strong> ${dataEvento}</p>
+              <p style="color: #e6edf3; margin: 5px 0;"><strong>Valor total:</strong> ${valorTotal}</p>
+            </div>
+            
+            <p style="color: #8b949e; font-size: 12px; margin-top: 30px; border-top: 1px solid rgba(255,255,255,0.08); padding-top: 20px;">
+              Por favor, revise o contrato em anexo. Em caso de dúvidas, entre em contato.
+            </p>
+          </div>
+        </div>
+      `,
+      text: `
+        Olá, ${nomeClienteStr}!
+        
+        Segue em anexo o contrato da sua proposta para o evento.
+        
+        Tipo: ${tipoNome}
+        Data do evento: ${dataEvento}
+        Valor total: ${valorTotal}
+        
+        Por favor, revise o contrato em anexo. Em caso de dúvidas, entre em contato.
+      `,
+      attachments: [
+        {
+          filename: nomeArquivo,
+          content: buffer,
+          contentType: "application/pdf",
+        },
+      ],
+    });
+
+    console.log(`✅ Contrato de proposta enviado para ${emailCliente}`);
+    return true;
+  } catch (error) {
+    console.error(`❌ Erro ao enviar contrato por email para ${emailCliente}:`, error);
+    return false;
+  }
+}

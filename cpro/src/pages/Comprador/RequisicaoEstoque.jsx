@@ -429,7 +429,7 @@ async function carregarProdutosEstoque() {
             <div style={kpiLabel}>Requisições Hoje</div>
             <div style={kpiValue}>{kpis.totalReqHoje}</div>
           </div>
-          <div style={{ ...kpiCard, borderLeft: `4px solid ${COR_LARANJA}`, borderTop: "none" }}>
+          <div style={{ ...kpiCard, borderLeft: `4px solid ${COR_VERDE}`, borderTop: "none" }}>
             <div style={kpiLabel}>Itens Solicitados Hoje</div>
             <div style={kpiValue}>{kpis.totalItensHoje}</div>
           </div>
@@ -496,12 +496,12 @@ async function carregarProdutosEstoque() {
     type="button"
     onClick={carregarProdutosEstoque}
     style={{
-      background: "#8BBBE6",
-      color: "#0B1C26",
+      background: "var(--gradient-btn-orange)",
+      color: "#fff",
       border: "none",
       marginBottom: 12,
       padding: "8px 12px",
-      borderRadius: 8,
+      borderRadius: 4,
       fontWeight: 700,
       cursor: "pointer",
     }}
@@ -541,7 +541,7 @@ async function carregarProdutosEstoque() {
               style={{
                 width: 70,
                 padding: "6px",
-                borderRadius: 8,
+                borderRadius: 4,
                 border: "1px solid #ccc",
                 textAlign: "center",
               }}
@@ -575,10 +575,10 @@ async function carregarProdutosEstoque() {
                 campo.value = "";
               }}
               style={{
-                background: "#25C19B",
+                background: "var(--gradient-btn-primary)",
                 border: "none",
                 padding: "6px 10px",
-                borderRadius: 8,
+                borderRadius: 4,
                 cursor: "pointer",
                 color: "#0B1C26",
                 fontWeight: 700,
@@ -717,7 +717,7 @@ const btnSair = {
   background: "rgba(255,255,255,0.12)",
   color: "#fff",
   border: "none",
-  borderRadius: 8,
+  borderRadius: 4,
   padding: "8px 12px",
   cursor: "pointer",
   fontWeight: "bold",
@@ -727,7 +727,7 @@ const btnGhost = {
   background: "rgba(255,255,255,0.08)",
   color: "#fff",
   border: "1px solid rgba(255,255,255,0.3)",
-  borderRadius: 8,
+  borderRadius: 4,
   padding: "6px 10px",
   cursor: "pointer",
   fontWeight: 600,
@@ -755,16 +755,11 @@ const kpiRow = {
 };
 
 const BORDER = "1px solid rgba(255,255,255,0.08)";
-const CARD_BG = "#161b22";
 
 const kpiCard = {
   flex: 1,
   minWidth: 200,
-  background: CARD_BG,
-  border: BORDER,
-  borderRadius: 12,
   padding: 20,
-  boxShadow: "0 1px 2px rgba(0,0,0,0.2)",
 };
 
 const kpiLabel = {
@@ -782,11 +777,7 @@ const kpiValue = {
 };
 
 const card = {
-  background: CARD_BG,
-  border: BORDER,
-  borderRadius: 12,
   padding: 20,
-  boxShadow: "0 1px 2px rgba(0,0,0,0.2)",
 };
 
 const sectionHeader = {
@@ -814,24 +805,24 @@ const label = {
 const textarea = {
   width: "100%",
   minHeight: 60,
-  borderRadius: 8,
+  borderRadius: 4,
   border: BORDER,
   padding: 12,
   fontSize: "0.9375rem",
   outline: "none",
   resize: "vertical",
-  background: "#fff",
-  color: "#1a1a1a",
+  background: "transparent",
+  color: "#e6edf3",
 };
 
 const inputBase = {
   height: 40,
-  borderRadius: 8,
+  borderRadius: 4,
   border: BORDER,
   padding: "0 12px",
   outline: "none",
-  background: "#fff",
-  color: "#1a1a1a",
+  background: "transparent",
+  color: "#e6edf3",
   fontSize: "0.9375rem",
   boxSizing: "border-box",
 };
@@ -853,7 +844,7 @@ const btnAddItem = {
   background: COR_AZUL_CLARO,
   color: "#0B1C26",
   border: "none",
-  borderRadius: 8,
+  borderRadius: 4,
   padding: "8px 12px",
   cursor: "pointer",
   fontWeight: 700,
@@ -863,7 +854,7 @@ const btnRemoveItem = {
   background: COR_SALMAO,
   color: "#fff",
   border: "none",
-  borderRadius: 8,
+  borderRadius: 4,
   padding: "6px 8px",
   cursor: "pointer",
   fontWeight: 700,
@@ -877,10 +868,10 @@ const acoesForm = {
 };
 
 const btnEnviar = {
-  background: COR_VERDE,
+  background: "var(--gradient-btn-primary)",
   color: "#0B1C26",
   border: "none",
-  borderRadius: 10,
+  borderRadius: 4,
   padding: "10px 16px",
   cursor: "pointer",
   fontWeight: 700,
@@ -890,7 +881,7 @@ const btnImprimir = {
   background: COR_LARANJA,
   color: "#1E1E1E",
   border: "none",
-  borderRadius: 10,
+  borderRadius: 4,
   padding: "10px 16px",
   cursor: "pointer",
   fontWeight: 700,
@@ -900,26 +891,23 @@ const btnExportar = {
   background: "rgba(255,255,255,0.1)",
   color: "#e6edf3",
   border: BORDER,
-  borderRadius: 10,
+  borderRadius: 4,
   padding: "10px 16px",
   cursor: "pointer",
   fontWeight: 700,
 };
 
 const listaBox = {
-  background: CARD_BG,
-  border: BORDER,
   color: "#e6edf3",
-  borderRadius: 12,
   padding: 20,
-  boxShadow: "0 1px 2px rgba(0,0,0,0.2)",
+  borderBottom: BORDER,
 };
 
 const btnVoltarEstoque = {
   background: "#162232",
   color: "#fff",
   border: "none",
-  borderRadius: 8,
+  borderRadius: 4,
   padding: "8px 14px",
   cursor: "pointer",
   fontWeight: "bold",

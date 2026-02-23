@@ -11,7 +11,6 @@ const SALMAO = "#FF8882";
 const LARANJA = "#F6A46A";
 const TEXTO_ESCURO = "#1F2E45";
 const BORDER = "1px solid rgba(255,255,255,0.08)";
-const CARD_BG = "#161b22";
 
 const SEC_CORES = [
   "Seção",
@@ -737,7 +736,7 @@ async function excluirTudo() {
         justifyContent: "center",
         background: "rgba(255,255,255,0.06)",
         border: BORDER,
-        borderRadius: 10,
+        borderRadius: 4,
         height: 40,
         boxSizing: "border-box",
       }}
@@ -874,11 +873,7 @@ async function excluirTudo() {
 }
 /* ===================== estilos (padrão escuro como catálogo comprador) ===================== */
 const card = {
-  background: CARD_BG,
-  border: BORDER,
-  borderRadius: 12,
   padding: 16,
-  boxShadow: "0 1px 2px rgba(0,0,0,0.2)",
   color: "#e6edf3",
 };
 const acoesRow = {
@@ -888,7 +883,7 @@ const acoesRow = {
 };
 const input = {
   height: 40,
-  borderRadius: 10,
+  borderRadius: 4,
   border: BORDER,
   padding: "0 12px",
   outline: "none",
@@ -906,15 +901,15 @@ const fileBtn = {
   color: "#e6edf3",
   border: "1px dashed rgba(255,255,255,0.2)",
   padding: "10px 14px",
-  borderRadius: 10,
+  borderRadius: 4,
   cursor: "pointer",
   fontWeight: 600,
 };
 const btnPrimary = {
-  background: VERDE,
+  background: "var(--gradient-btn-primary)",
   color: "#0B1C26",
   border: "none",
-  borderRadius: 10,
+  borderRadius: 4,
   padding: "10px 14px",
   cursor: "pointer",
   fontWeight: 700,
@@ -923,7 +918,7 @@ const btnSecondary = {
   background: "rgba(255,255,255,0.1)",
   color: "#e6edf3",
   border: BORDER,
-  borderRadius: 10,
+  borderRadius: 4,
   padding: "10px 14px",
   cursor: "pointer",
   fontWeight: 700,
@@ -932,7 +927,7 @@ const btnAdd = {
   background: LARANJA,
   color: "#1E1E1E",
   border: "none",
-  borderRadius: 10,
+  borderRadius: 4,
   padding: "10px 14px",
   cursor: "pointer",
   fontWeight: 700,
@@ -941,7 +936,7 @@ const btnGhost = {
   background: "rgba(255,255,255,0.1)",
   color: "#e6edf3",
   border: BORDER,
-  borderRadius: 8,
+  borderRadius: 4,
   padding: "8px 12px",
   cursor: "pointer",
   fontWeight: 600,
@@ -950,7 +945,7 @@ const btnGhostDark = {
   background: "rgba(255,255,255,0.1)",
   color: "#e6edf3",
   border: BORDER,
-  borderRadius: 8,
+  borderRadius: 4,
   padding: "8px 12px",
   cursor: "pointer",
   fontWeight: 600,
@@ -959,7 +954,7 @@ const btnAddRow = {
   background: "#0EA5E9",
   color: "#ffffff",
   border: "none",
-  borderRadius: 10,
+  borderRadius: 4,
   height: 40,
   padding: "0 16px",
   cursor: "pointer",
@@ -969,7 +964,7 @@ const btnTrash = {
   background: SALMAO,
   color: "#fff",
   border: "none",
-  borderRadius: 8,
+  borderRadius: 4,
   padding: "8px 10px",
   cursor: "pointer",
   fontWeight: 700,
@@ -978,10 +973,8 @@ const secaoHeader = {
   display: "flex",
   justifyContent: "space-between",
   alignItems: "center",
-  padding: "16px 20px",
-  background: "rgba(255,255,255,0.05)",
+  padding: "16px 0",
   borderBottom: BORDER,
-  borderRadius: "12px 12px 0 0",
 };
 const secaoTitle = {
   fontSize: "1.125rem",
@@ -997,8 +990,7 @@ const secaoCount = {
 const tableHeader = {
   display: "flex",
   alignItems: "center",
-  padding: "12px 16px",
-  background: "rgba(255,255,255,0.03)",
+  padding: "12px 0",
   borderBottom: BORDER,
   gap: 8,
 };
@@ -1012,10 +1004,9 @@ const tableHeaderCell = {
 const tRow = {
   display: "flex",
   alignItems: "center",
-  padding: "10px 16px",
+  padding: "10px 0",
   borderBottom: BORDER,
   gap: 8,
-  background: CARD_BG,
 };
 const tableCell = {
   display: "flex",
@@ -1033,9 +1024,9 @@ const cell = {
   height: 44,
 };
 const cellInput = {
-  background: "#fff",
+  background: "transparent",
   border: BORDER,
-  borderRadius: 8,
+  borderRadius: 4,
   padding: "0 12px",
   minHeight: 44,
   outline: "none",
@@ -1044,13 +1035,13 @@ const cellInput = {
   boxSizing: "border-box",
   fontSize: "0.9375rem",
   flexShrink: 1,
-  color: "#1a1a1a",
+  color: "#e6edf3",
 };
 const btnDanger = {
   background: "#EF4444",
   color: "#fff",
   border: "none",
-  borderRadius: 10,
+  borderRadius: 4,
   padding: "10px 14px",
   cursor: "pointer",
   fontWeight: 700,

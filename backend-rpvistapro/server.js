@@ -17,8 +17,21 @@ import usuariosRoutes from "./routes/usuarios.js";
 import estoqueRoutes from "./routes/estoque.js";
 import funcionariosAutorizadosRouter from "./routes/funcionarios-autorizados.js";
 import requisicoesEstoqueRoutes from "./routes/requisicoes-estoque.js";
+import fichasTecnicasRoutes from "./routes/fichas-tecnicas.js";
+import produtosVendaRoutes from "./routes/produtos-venda.js";
+import notasFiscaisRoutes from "./routes/notas-fiscais.js";
+import estoqueFornecedorRoutes from "./routes/estoque-fornecedor.js";
 import fornecedoresCadastradosRoutes from "./routes/fornecedores-cadastrados.js";
 import fornecedoresRoutes from "./routes/fornecedores.js";
+import comandasRoutes from "./routes/comandas.js";
+import caixaRoutes from "./routes/caixa.js";
+import pontoRoutes from "./routes/ponto.js";
+import cardapioPdvRoutes from "./routes/cardapio-pdv.js";
+import orcamentosRoutes from "./routes/orcamentos.js";
+import produtosOrcamentoRoutes from "./routes/produtos-orcamento.js";
+import modelosFichaOrcamentoRoutes from "./routes/modelos-ficha-orcamento.js";
+import tipoPropostaRoutes from "./routes/tipo-proposta.js";
+import propostasRoutes from "./routes/propostas.js";
 const app =
  express();
 
@@ -54,8 +67,21 @@ app.use("/api/estoque", estoqueRoutes);
 app.use("/api/upload", uploadRoutes);
 app.use("/api/funcionarios-autorizados", funcionariosAutorizadosRouter);
 app.use("/api/requisicoes", requisicoesEstoqueRoutes);
+app.use("/api/fichas-tecnicas", fichasTecnicasRoutes);
+app.use("/api/produtos-venda", produtosVendaRoutes);
+app.use("/api/notas-fiscais", notasFiscaisRoutes);
+app.use("/api/estoque-fornecedor", estoqueFornecedorRoutes);
 app.use("/api/fornecedores-cadastrados", fornecedoresCadastradosRoutes);
 app.use("/api/fornecedores", fornecedoresRoutes);
+app.use("/api/comandas", comandasRoutes);
+app.use("/api/caixa", caixaRoutes);
+app.use("/api/ponto", pontoRoutes);
+app.use("/api/cardapio-pdv", cardapioPdvRoutes);
+app.use("/api/orcamentos", orcamentosRoutes);
+app.use("/api/produtos-orcamento", produtosOrcamentoRoutes);
+app.use("/api/modelos-ficha-orcamento", modelosFichaOrcamentoRoutes);
+app.use("/api/tipo-proposta", tipoPropostaRoutes);
+app.use("/api/propostas", propostasRoutes);
 // ⚠️ Middleware para rotas inexistentes
 app.use((req, res) => {
   res.status(404).json({ error: "Rota não encontrada" });

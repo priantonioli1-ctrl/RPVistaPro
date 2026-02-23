@@ -169,7 +169,7 @@ export default function ResumoCotacao() {
     const fornecedores = [];
     try {
       console.log("📦 Buscando catálogos de fornecedores com preços...");
-      const resposta = await fetch(`${BASE_URL}/api/catalogos-fornecedores`);
+      const resposta = await fetch(`${BASE_URL}/api/catalogos-fornecedores?comDisponibilidade=1`);
       if (!resposta.ok)
         throw new Error(`Falha ao buscar catálogos: ${resposta.statusText}`);
       const lista = await resposta.json();
@@ -183,6 +183,7 @@ export default function ResumoCotacao() {
                 nome: item.nome?.trim() || "",
                 unidade: item.unidade?.trim() || "",
                 preco: Number(item.preco) || 0,
+                disponivel: Number(item.disponivel) ?? 0,
               })),
             });
           }
@@ -218,15 +219,34 @@ export default function ResumoCotacao() {
       }
 
       if (melhorFornecedor) {
+        let produtoMelhor = null;
+        for (const f of fornecedores) {
+          if (f.nome !== melhorFornecedor) continue;
+          let p = f.lista.find(
+            (x) =>
+              nomesParecidos(x.nome, item.nome) &&
+              (!normUnit(item.unidade) || normUnit(x.unidade) === normUnit(item.unidade))
+          );
+          if (!p) p = f.lista.find((x) => nomesParecidos(x.nome, item.nome));
+          if (p && p.preco === melhorPreco) {
+            produtoMelhor = p;
+            break;
+          }
+        }
+        const disponivel = produtoMelhor ? (Number(produtoMelhor.disponivel) ?? 0) : 0;
+        const qtd = item.qtd || 1;
+        const emFalta = disponivel <= 0 || disponivel < qtd;
         if (!mapaPedidos[melhorFornecedor])
           mapaPedidos[melhorFornecedor] = [];
         mapaPedidos[melhorFornecedor].push({
           nome: item.nome,
           unidade: item.unidade,
-          qtd: item.qtd || 1,
+          qtd,
           preco: melhorPreco,
-          total: (item.qtd || 1) * melhorPreco,
+          total: qtd * melhorPreco,
           fornecedor: melhorFornecedor,
+          emFalta,
+          disponivel,
         });
       } else {
         naoEncontrados.push(item);
@@ -339,6 +359,7 @@ export default function ResumoCotacao() {
           fornecedor,
           itens: produtosFornecedor.map((p) => ({
             nome: p.nome,
+            unidade: p.unidade || "un",
             quantidade: p.qtd,
             precoUnitario: p.preco,
           })),
@@ -366,7 +387,7 @@ export default function ResumoCotacao() {
   }
 
   return (
-    <div style={page}>
+    <div className="layout-content-inner" style={page}>
       {gerando && pedidos.length === 0 ? (
         <p style={{ color: "#8b949e" }}>Carregando...</p>
       ) : pedidos.length === 0 && itensNaoEncontrados.length === 0 ? (
@@ -380,10 +401,10 @@ export default function ResumoCotacao() {
           const temMais = (p.produtos?.length || 0) > 2;
 
           return (
-            <div key={i} style={card}>
+            <div key={i} className="card-panel" style={cardStyle}>
               <div style={cardHeader}>
                 <div>
-                  <strong>{p.fornecedor}</strong>
+                  <strong style={{ textTransform: "uppercase" }}>{p.fornecedor}</strong>
                   <p style={{ margin: 0, fontSize: "0.9rem", color: "#ccc" }}>
                     {p.qtdProdutos} produto(s)
                   </p>
@@ -408,6 +429,11 @@ export default function ResumoCotacao() {
                     <span>
                       {prod.nome} — {prod.qtd}x R$
                       {Number(prod.preco).toFixed(2)}
+                      {prod.emFalta && (
+                        <span style={{ marginLeft: 8, color: "#F6A46A", fontWeight: 600, fontSize: "0.85rem" }} title="Fornecedor sem estoque suficiente">
+                          (Em falta)
+                        </span>
+                      )}
                     </span>
                   </div>
                 ))}
@@ -443,9 +469,8 @@ export default function ResumoCotacao() {
 
 /* --- ESTILOS (padrão das outras páginas) --- */
 const BORDER = "1px solid rgba(255,255,255,0.08)";
-const CARD_BG = "#161b22";
-const page = { width: "100%", maxWidth: "none", padding: "0 8px", boxSizing: "border-box", color: "#e6edf3", minHeight: "100vh" };
-const card = { background: CARD_BG, border: BORDER, borderRadius: 8, padding: 16, marginBottom: 16 };
+const page = { width: "100%", maxWidth: "none", padding: 0, boxSizing: "border-box", color: "#e6edf3" };
+const cardStyle = { padding: "20px 24px", marginBottom: 16 };
 const cardHeader = {
   display: "flex",
   justifyContent: "space-between",
@@ -457,13 +482,13 @@ const cardHeader = {
 const produtosBox = { marginTop: 12 };
 const produtoLinha = { display: "flex", alignItems: "center", marginBottom: 8, gap: 8, color: "#e6edf3" };
 const xRemover = { color: "#f85149", cursor: "pointer", fontWeight: "bold" };
-const btnVerMais = { background: "none", color: "#58a6ff", border: "none", cursor: "pointer" };
+const btnVerMais = { background: "none", color: "var(--accent)", border: "none", cursor: "pointer" };
 const acoes = { marginTop: 12, display: "flex", justifyContent: "flex-end", gap: 10 };
 const btnEnviar = {
-  background: "#238636",
-  color: "#fff",
+  background: "var(--gradient-neon-cyan)",
+  color: "#0F011E",
   border: "none",
-  borderRadius: 6,
+  borderRadius: 4,
   padding: "8px 14px",
   cursor: "pointer",
   fontWeight: "bold",

@@ -6,7 +6,6 @@ import Swal from "sweetalert2";
 const API_URL = process.env.REACT_APP_API_URL ?? "";
 const API_BASE = API_URL || (typeof window !== "undefined" ? window.location.origin : "http://localhost:4001");
 const BORDER = "1px solid rgba(255,255,255,0.08)";
-const CARD_BG = "#161b22";
 
 export default function Clientes() {
   const [compradores, setCompradores] = useState([]);
@@ -253,11 +252,7 @@ export default function Clientes() {
 }
 
 const card = {
-  background: CARD_BG,
-  border: BORDER,
-  borderRadius: 12,
   padding: 24,
-  boxShadow: "0 1px 2px rgba(0,0,0,0.2)",
   color: "#e6edf3",
 };
 
@@ -270,7 +265,7 @@ const clientesList = {
 const clienteCard = {
   background: "rgba(37, 193, 155, 0.1)",
   border: "1px solid rgba(37, 193, 155, 0.3)",
-  borderRadius: 8,
+  borderRadius: 4,
   padding: 16,
   display: "flex",
   justifyContent: "space-between",
@@ -286,7 +281,7 @@ const compradoresList = {
 const compradorCard = {
   background: "rgba(255,255,255,0.05)",
   border: BORDER,
-  borderRadius: 8,
+  borderRadius: 4,
   padding: 16,
   display: "flex",
   justifyContent: "space-between",
@@ -294,10 +289,10 @@ const compradorCard = {
 };
 
 const btnAdicionar = {
-  background: "#25C19B",
+  background: "var(--gradient-btn-primary)",
   color: "#0B1C26",
   border: "none",
-  borderRadius: 8,
+  borderRadius: 4,
   padding: "8px 16px",
   cursor: "pointer",
   fontWeight: 600,
@@ -308,7 +303,7 @@ const btnRemover = {
   background: "transparent",
   color: "#f85149",
   border: "1px solid rgba(248,81,73,0.5)",
-  borderRadius: 8,
+  borderRadius: 4,
   padding: "8px 16px",
   cursor: "pointer",
   fontWeight: 600,
@@ -319,7 +314,7 @@ const badgeCliente = {
   background: "rgba(37, 193, 155, 0.2)",
   color: "#25C19B",
   border: "1px solid rgba(37, 193, 155, 0.4)",
-  borderRadius: 8,
+  borderRadius: 4,
   padding: "8px 16px",
   fontWeight: 600,
   fontSize: "0.875rem",

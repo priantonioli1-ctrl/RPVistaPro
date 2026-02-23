@@ -5,7 +5,6 @@ import Swal from "sweetalert2";
 
 const API_URL = process.env.REACT_APP_API_URL || "http://localhost:4001";
 const BORDER = "1px solid rgba(255,255,255,0.08)";
-const CARD_BG = "#161b22";
 
 function chaveItem(nome, unidade) {
   return `${nome}::${unidade || "un"}`;
@@ -72,7 +71,7 @@ export default function SaidaMercadorias() {
           };
         });
         setCatalogComEstoque(itens);
-        const cats = [...new Set(itens.map((i) => i.secao).filter(Boolean))].sort();
+        const cats = [...new Set(itens.map((i) => (i.secao || "Sem seção").trim() || "Sem seção"))].filter(Boolean).sort();
         setCategorias(cats);
         setCategoriaSelecionada((prev) => prev || cats[0] || "");
         const iniciais = {};
@@ -207,6 +206,10 @@ export default function SaidaMercadorias() {
     }
   }
 
+  function getEmpresaId() {
+    return usuarioAtual?.compradorId || (usuarioAtual?.tipo === "comprador" ? usuarioAtual?._id : null);
+  }
+
   async function atualizarStatus(req, novoStatus) {
     const confirmar = await Swal.fire({
       title: `Alterar status para "${novoStatus}"?`,
@@ -214,7 +217,7 @@ export default function SaidaMercadorias() {
       showCancelButton: true,
       confirmButtonText: "Sim",
       cancelButtonText: "Cancelar",
-      confirmButtonColor: "#25C19B",
+      confirmButtonColor: "#20b5a6",
     });
 
     if (!confirmar.isConfirmed) return;
@@ -301,38 +304,24 @@ export default function SaidaMercadorias() {
   const requisicoesEntregues = requisicoes.filter((r) => r.status === "Entregue");
 
   return (
-    <div style={{ width: "100%", maxWidth: "none", padding: "0 8px", boxSizing: "border-box", color: "#e6edf3" }}>
+    <div className="layout-content-inner" style={{ width: "100%", padding: 0, boxSizing: "border-box", color: "#e6edf3" }}>
       <main style={mainWrap}>
-        {/* Seção: Gerar Link de Requisição */}
-        <div style={boxReq}>
-          <h2 style={{ marginBottom: 12, color: "#e6edf3", fontSize: "1.5rem", fontWeight: 700 }}>
-            📤 Gerar Link de Requisição
-          </h2>
-          <p style={{ color: "#8b949e", marginBottom: 16, fontSize: "0.9375rem" }}>
-            Gere um link e envie para o funcionário. Pelo link ele verá o catálogo por categoria, informará o nome (ou usará reconhecimento facial) e solicitará os itens. Não é necessário acesso ao sistema.
-          </p>
-          {linkRequisicao ? (
-            <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
-              <input
-                readOnly
-                value={linkRequisicao}
-                style={inputLink}
-                className="campo-fundo-claro"
-              />
-              <button type="button" onClick={copiarLink} style={btnCopiar}>
-                {linkCopiado ? "✓ Copiado!" : "📋 Copiar link"}
-              </button>
-            </div>
-          ) : (
-            <p style={{ color: "#8b949e" }}>Carregando...</p>
-          )}
-        </div>
-
         {/* Seção: Fazer requisição direto na página (catálogo) */}
         <div style={boxReq}>
-          <h2 style={{ marginBottom: 12, color: "#e6edf3", fontSize: "1.5rem", fontWeight: 700 }}>
-            📋 Fazer requisição nesta página
-          </h2>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12, marginBottom: 12 }}>
+            <h2 style={{ margin: 0, color: "#e6edf3", fontSize: "1.5rem", fontWeight: 700 }}>
+              Requisição
+            </h2>
+            <button
+              type="button"
+              onClick={copiarLink}
+              style={linkRequisicao ? btnGerarLink : { ...btnGerarLink, opacity: 0.7, cursor: "not-allowed" }}
+              disabled={!linkRequisicao}
+              title="Gera o link de requisição e copia para a área de transferência. Envie o link para o funcionário solicitar produtos."
+            >
+              {linkCopiado ? "Link copiado!" : "Gerar link"}
+            </button>
+          </div>
           <p style={{ color: "#8b949e", marginBottom: 16, fontSize: "0.9375rem" }}>
             Use o catálogo abaixo para montar uma requisição e registrar a saída. Escolha a categoria e informe as quantidades e o nome do solicitante.
           </p>
@@ -340,7 +329,7 @@ export default function SaidaMercadorias() {
           {loadingCatalog ? (
             <p style={{ color: "#8b949e" }}>Carregando catálogo...</p>
           ) : catalogComEstoque.length === 0 ? (
-            <p style={{ color: "#8b949e" }}>Nenhum item no catálogo. Cadastre itens em Meu Catálogo e Estoque.</p>
+            <p style={{ color: "#8b949e" }}>Nenhum item no catálogo. Cadastre itens em Catálogo e Controle de estoque.</p>
           ) : (
             <>
               {categorias.length > 0 && (
@@ -374,26 +363,42 @@ export default function SaidaMercadorias() {
                   className="campo-fundo-claro"
                 />
               </div>
-              <div style={{ marginBottom: 12 }}>
-                <label style={{ color: "#8b949e", fontSize: "0.875rem" }}>Setor (opcional)</label>
-                <input
-                  type="text"
-                  value={setorRequisicao}
-                  onChange={(e) => setSetorRequisicao(e.target.value)}
-                  placeholder="Ex.: Cozinha, Bar"
-                  style={inputDark}
-                  className="campo-fundo-claro"
-                />
+              <div style={{ display: "flex", alignItems: "flex-end", gap: 12, marginBottom: 12, flexWrap: "wrap" }}>
+                <div style={{ flex: 1, minWidth: 200 }}>
+                  <label style={{ color: "#8b949e", fontSize: "0.875rem", display: "block", marginBottom: 6 }}>Setor (opcional)</label>
+                  <input
+                    type="text"
+                    value={setorRequisicao}
+                    onChange={(e) => setSetorRequisicao(e.target.value)}
+                    placeholder="Ex.: Cozinha, Bar"
+                    style={inputDark}
+                    className="campo-fundo-claro"
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={criarRequisicaoNaPagina}
+                  disabled={enviandoRequisicao}
+                  style={{ ...btn, background: "var(--gradient-btn-primary)", color: "#0B1C26", padding: "10px 20px", fontSize: "1rem", flexShrink: 0 }}
+                >
+                  {enviandoRequisicao ? "Criando..." : "Criar requisição"}
+                </button>
               </div>
 
               <div style={{ overflowX: "auto", marginBottom: 16 }}>
-                <table style={{ width: "100%", borderCollapse: "collapse", color: "#e6edf3" }}>
+                <table style={{ width: "100%", borderCollapse: "collapse", color: "#e6edf3", tableLayout: "fixed" }}>
+                  <colgroup>
+                    <col style={{ width: "auto" }} />
+                    <col style={{ width: "80px" }} />
+                    <col style={{ width: "60px" }} />
+                    <col style={{ width: "90px" }} />
+                  </colgroup>
                   <thead>
                     <tr>
                       <th style={{ ...thDark, padding: "8px 10px", textAlign: "left" }}>Produto</th>
-                      <th style={{ ...thDark, padding: "8px 10px" }}>Un.</th>
-                      <th style={{ ...thDark, padding: "8px 10px" }}>Disp.</th>
-                      <th style={{ ...thDark, padding: "8px 10px" }}>Qtd</th>
+                      <th style={{ ...thDark, padding: "8px 10px", width: 80, textAlign: "left" }}>Un.</th>
+                      <th style={{ ...thDark, padding: "8px 10px", width: 60, textAlign: "center" }}>Disp.</th>
+                      <th style={{ ...thDark, padding: "8px 10px", width: 90, textAlign: "center" }}>Qtd</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -406,9 +411,9 @@ export default function SaidaMercadorias() {
                         return (
                           <tr key={chave} style={{ borderBottom: BORDER }}>
                             <td style={{ padding: "8px 10px", color: "#e6edf3" }}>{p.nome}{p.marca ? ` — ${p.marca}` : ""}</td>
-                            <td style={{ padding: "8px 10px", color: "#8b949e" }}>{p.unidade || "un"}</td>
-                            <td style={{ padding: "8px 10px", color: "#8b949e" }}>{maxQtd}</td>
-                            <td style={{ padding: "8px 10px" }}>
+                            <td style={{ padding: "8px 10px", color: "#8b949e", textAlign: "left" }}>{p.unidade || "un"}</td>
+                            <td style={{ padding: "8px 10px", color: "#8b949e", textAlign: "center" }}>{maxQtd}</td>
+                            <td style={{ padding: "8px 10px", textAlign: "center" }}>
                               <input
                                 type="number"
                                 min={0}
@@ -439,14 +444,6 @@ export default function SaidaMercadorias() {
                 />
               </div>
 
-              <button
-                type="button"
-                onClick={criarRequisicaoNaPagina}
-                disabled={enviandoRequisicao}
-                style={{ ...btn, background: "#25C19B", color: "#0B1C26" }}
-              >
-                {enviandoRequisicao ? "Criando..." : "Criar requisição"}
-              </button>
             </>
           )}
         </div>
@@ -491,7 +488,7 @@ export default function SaidaMercadorias() {
                 </div>
 
                 {req.observacoes && (
-                  <div style={{ marginTop: 12, padding: 12, background: "rgba(255,255,255,0.05)", borderRadius: 8 }}>
+                  <div style={{ marginTop: 12, padding: 12, borderBottom: BORDER }}>
                     <strong style={{ color: "#8b949e", fontSize: "0.875rem" }}>Observações:</strong>
                     <p style={{ color: "#e6edf3", margin: "4px 0 0", fontSize: "0.9375rem" }}>{req.observacoes}</p>
                   </div>
@@ -509,10 +506,10 @@ export default function SaidaMercadorias() {
 
                   {req.status === "Em Separação" && (
                     <button
-                      style={{ ...btn, background: "#25C19B" }}
+                      style={{ ...btn, background: "var(--gradient-btn-primary)" }}
                       onClick={() => atualizarStatus(req, "Entregue")}
                     >
-                      ✓ Marcar como Entregue e Dar Baixa
+                      Marcar como Entregue e Dar Baixa
                     </button>
                   )}
 
@@ -589,13 +586,10 @@ const mainWrap = {
 };
 
 const boxReq = {
-  background: CARD_BG,
-  border: BORDER,
   color: "#e6edf3",
   padding: 24,
-  borderRadius: 12,
-  boxShadow: "0 1px 2px rgba(0,0,0,0.2)",
   marginBottom: 18,
+  borderBottom: BORDER,
 };
 
 const reqHeader = {
@@ -607,7 +601,7 @@ const reqHeader = {
 
 const badgeStatus = {
   padding: "6px 14px",
-  borderRadius: 8,
+  borderRadius: 4,
   fontWeight: 600,
   color: "#fff",
   fontSize: "0.875rem",
@@ -625,7 +619,7 @@ const acoes = {
 const btn = {
   padding: "10px 18px",
   border: "none",
-  borderRadius: 8,
+  borderRadius: 4,
   cursor: "pointer",
   fontWeight: 600,
   fontSize: "0.9375rem",
@@ -634,18 +628,26 @@ const btn = {
 
 const btnCopiar = {
   ...btn,
-  background: "#25C19B",
+  background: "var(--gradient-btn-primary)",
   color: "#0B1C26",
+};
+
+const btnGerarLink = {
+  ...btn,
+  background: "var(--gradient-btn-primary)",
+  color: "#0B1C26",
+  padding: "10px 20px",
+  fontSize: "1rem",
 };
 
 const inputLink = {
   flex: 1,
   minWidth: 200,
   padding: "10px 12px",
-  borderRadius: 8,
+  borderRadius: 4,
   border: BORDER,
-  background: "#fff",
-  color: "#1a1a1a",
+  background: "transparent",
+  color: "#e6edf3",
   fontSize: "0.9375rem",
 };
 
@@ -653,9 +655,9 @@ const selectDark = {
   width: "100%",
   maxWidth: 320,
   padding: "10px 12px",
-  borderRadius: 8,
+  borderRadius: 4,
   border: BORDER,
-  background: CARD_BG,
+  background: "rgba(0,0,0,0.2)",
   color: "#e6edf3",
   fontSize: "1rem",
 };
@@ -664,9 +666,9 @@ const inputDark = {
   width: "100%",
   maxWidth: 400,
   padding: "10px 12px",
-  borderRadius: 8,
+  borderRadius: 4,
   border: BORDER,
-  background: CARD_BG,
+  background: "rgba(0,0,0,0.2)",
   color: "#e6edf3",
   fontSize: "1rem",
   boxSizing: "border-box",
@@ -682,9 +684,10 @@ const thDark = {
 const inputNumDark = {
   width: 72,
   padding: "6px 8px",
-  borderRadius: 6,
+  borderRadius: 4,
   border: BORDER,
-  background: CARD_BG,
+  background: "rgba(0,0,0,0.2)",
   color: "#e6edf3",
   fontSize: "0.9375rem",
 };
+

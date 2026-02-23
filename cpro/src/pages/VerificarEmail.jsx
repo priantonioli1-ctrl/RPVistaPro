@@ -83,13 +83,13 @@ export default function VerificarEmail() {
       display: "flex",
       alignItems: "center",
       justifyContent: "center",
-      background: "linear-gradient(135deg, #0d1117 0%, #161b22 100%)",
+      background: "linear-gradient(135deg, var(--main-bg, #0F011E) 0%, var(--card-bg, #240643) 100%)",
       padding: "20px",
     },
     card: {
-      background: "#161b22",
+      background: "var(--card-bg, #240643)",
       border: "1px solid rgba(255,255,255,0.08)",
-      borderRadius: "12px",
+      borderRadius: "4px",
       padding: "40px",
       maxWidth: "500px",
       width: "100%",
@@ -116,15 +116,15 @@ export default function VerificarEmail() {
       width: "100%",
       padding: "12px",
       marginBottom: "15px",
-      borderRadius: "6px",
+      borderRadius: "4px",
       border: "1px solid rgba(255,255,255,0.1)",
-      background: "#0d1117",
+      background: "var(--main-bg, #0F011E)",
       color: "#e6edf3",
       fontSize: "14px",
     },
     botao: {
       padding: "12px 24px",
-      borderRadius: "6px",
+      borderRadius: "4px",
       border: "none",
       fontSize: "14px",
       fontWeight: "600",
@@ -137,11 +137,11 @@ export default function VerificarEmail() {
     },
     botaoSecundario: {
       background: "transparent",
-      color: "#58a6ff",
-      border: "1px solid rgba(88,166,255,0.3)",
+      color: "var(--accent, #6236FF)",
+      border: "1px solid rgba(98, 54, 255, 0.4)",
     },
     loading: {
-      color: "#58a6ff",
+      color: "var(--accent, #6236FF)",
       fontSize: "16px",
     },
   };
@@ -172,7 +172,7 @@ export default function VerificarEmail() {
           <div>
             <p style={styles.mensagem}>❌ {mensagem}</p>
             
-            <div style={{ marginTop: "30px", padding: "20px", background: "#0d1117", borderRadius: "6px" }}>
+            <div style={{ marginTop: "30px", padding: "20px", background: "var(--main-bg, #0F011E)", borderRadius: "4px" }}>
               <p style={{ color: "#c9d1d9", fontSize: "14px", marginBottom: "15px" }}>
                 Não recebeu o email? Reenvie o link de verificação:
               </p>
