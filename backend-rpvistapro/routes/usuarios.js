@@ -3,7 +3,14 @@ import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import crypto from "crypto";
 import Usuario from "../models/Usuario.js";
+import Estado from "../models/Estado.js";
 import { enviarEmailVerificacao } from "../services/emailService.js";
+
+async function obterAliquotaPorEstado(sigla) {
+  if (!sigla || sigla.length !== 2) return null;
+  const estado = await Estado.findOne({ sigla: sigla.trim().toUpperCase() }).lean();
+  return estado ? estado.aliquota : null;
+}
 
 const router = express.Router();
 const JWT_SECRET = process.env.JWT_SECRET || "segredo123"; // coloque no .env depois
@@ -32,10 +39,32 @@ function validarCNPJ(cnpj) {
 ============================================================ */
 router.post("/", async (req, res) => {
   try {
-    let { nome, email, senha, tipo, cnpj, ramoAtuacao } = req.body;
+    let { nome, email, senha, tipo, cnpj, ramoAtuacao, endereco, estado, empresa } = req.body;
 
-    if (!nome || !email || !senha || !tipo || !cnpj) {
+    if (!nome || !email || !senha || !tipo) {
       return res.status(400).json({ error: "Preencha todos os campos obrigatórios." });
+    }
+
+    tipo = String(tipo || "").toLowerCase().trim();
+    // Normalizar variantes de "questionário" → "questionario"
+    if (
+      tipo === "questionario" ||
+      tipo === "questionário" ||
+      tipo.includes("question") ||
+      tipo.includes("diagnostico") ||
+      tipo === "questionário (diagnóstico)" ||
+      tipo === "questionario (diagnóstico)"
+    ) {
+      tipo = "questionario";
+    }
+    const isQuestionario = tipo === "questionario";
+
+    if (!["comprador", "fornecedor", "questionario"].includes(tipo)) {
+      return res.status(400).json({ error: "Tipo de usuário inválido. Escolha: Comprador, Fornecedor ou Questionário." });
+    }
+
+    if (!isQuestionario && !cnpj) {
+      return res.status(400).json({ error: "CNPJ obrigatório para comprador e fornecedor." });
     }
 
     email = email.trim().toLowerCase();
@@ -44,7 +73,7 @@ router.post("/", async (req, res) => {
       return res.status(400).json({ error: "E-mail inválido." });
     }
 
-    if (!validarCNPJ(cnpj)) {
+    if (!isQuestionario && !validarCNPJ(cnpj)) {
       return res.status(400).json({ error: "CNPJ inválido." });
     }
 
@@ -53,46 +82,60 @@ router.post("/", async (req, res) => {
       return res.status(400).json({ error: "E-mail já cadastrado." });
     }
 
-    tipo = String(tipo).toLowerCase();
-    if (!["comprador", "fornecedor"].includes(tipo)) {
-      return res.status(400).json({ error: "Tipo de usuário inválido." });
+    let aliquota = null;
+    const estadoSigla = estado ? String(estado).trim().toUpperCase().slice(0, 2) : "";
+    if (tipo === "fornecedor" && estadoSigla) {
+      aliquota = await obterAliquotaPorEstado(estadoSigla);
     }
 
     // Criptografar senha
     const senhaHash = await bcrypt.hash(senha, 10);
 
-    // Gerar token de verificação de email
-    const tokenVerificacao = crypto.randomBytes(32).toString("hex");
-    const tokenVerificacaoExpira = new Date();
-    tokenVerificacaoExpira.setHours(tokenVerificacaoExpira.getHours() + 24); // Expira em 24 horas
-
-    const novo = await Usuario.create({
+    const payload = {
       nome,
       email,
       senha: senhaHash,
       tipo,
-      cnpj,
+      cnpj: isQuestionario ? "00000000000191" : cnpj,
       ramoAtuacao: tipo === "comprador" ? (ramoAtuacao || "").trim() : undefined,
-      emailVerificado: false,
-      tokenVerificacao,
-      tokenVerificacaoExpira,
-    });
-
-    // Enviar email de verificação (não bloqueia o cadastro se falhar)
-    try {
-      await enviarEmailVerificacao(email, nome, tokenVerificacao);
-    } catch (emailError) {
-      console.error("⚠️ Erro ao enviar email de verificação (cadastro continuou):", emailError);
+      emailVerificado: isQuestionario,
+      tokenVerificacao: isQuestionario ? null : crypto.randomBytes(32).toString("hex"),
+      tokenVerificacaoExpira: isQuestionario ? null : new Date(Date.now() + 24 * 60 * 60 * 1000),
+    };
+    if (tipo === "fornecedor") {
+      payload.endereco = (endereco || "").trim();
+      payload.estado = estadoSigla;
+      payload.aliquota = aliquota;
+      payload.empresa = (empresa || nome || "").trim();
     }
 
+    const novo = await Usuario.create(payload);
+
+    // Enviar email de verificação (não bloqueia o cadastro se falhar) — exceto para questionário
+    if (!isQuestionario && payload.tokenVerificacao) {
+      try {
+        await enviarEmailVerificacao(email, nome, payload.tokenVerificacao);
+      } catch (emailError) {
+        console.error("⚠️ Erro ao enviar email de verificação (cadastro continuou):", emailError);
+      }
+    }
+
+    // Gera token para login automático após cadastro
+    const token = jwt.sign(
+      { id: novo._id, tipo: novo.tipo },
+      JWT_SECRET,
+      { expiresIn: "7d" }
+    );
+
     return res.json({
-      message: "Usuário cadastrado com sucesso! Verifique seu email para ativar a conta.",
+      token,
       usuario: {
         _id: novo._id,
         nome: novo.nome,
+        email: novo.email,
         tipo: novo.tipo,
         cnpj: novo.cnpj,
-        emailVerificado: false
+        emailVerificado: isQuestionario
       }
     });
 
@@ -120,19 +163,71 @@ router.post("/", async (req, res) => {
 
 
 /* ============================================================
+ 📌 1b) CADASTRO QUESTIONÁRIO (público — só nome, email, senha)
+============================================================ */
+router.post("/cadastro-questionario", async (req, res) => {
+  try {
+    const { nome, email, senha } = req.body;
+    if (!nome || !email || !senha) {
+      return res.status(400).json({ error: "Preencha nome, e-mail e senha." });
+    }
+    const emailNorm = email.trim().toLowerCase();
+    if (!validarEmail(emailNorm)) {
+      return res.status(400).json({ error: "E-mail inválido." });
+    }
+    const existe = await Usuario.findOne({ email: emailNorm });
+    if (existe) return res.status(400).json({ error: "E-mail já cadastrado." });
+    const senhaHash = await bcrypt.hash(senha, 10);
+    const novo = await Usuario.create({
+      nome: String(nome).trim(),
+      email: emailNorm,
+      senha: senhaHash,
+      tipo: "questionario",
+      cnpj: "00000000000191",
+      emailVerificado: true,
+    });
+    return res.json({
+      message: "Cadastro realizado! Faça login para acessar o questionário.",
+      usuario: { _id: novo._id, nome: novo.nome, tipo: novo.tipo },
+    });
+  } catch (err) {
+    console.error("Erro ao cadastrar questionário:", err);
+    return res.status(500).json({ error: "Erro ao cadastrar." });
+  }
+});
+
+/* ============================================================
  📌 2) LOGIN (GERA TOKEN)
 ============================================================ */
 router.post("/login", async (req, res) => {
   try {
-    let { email, senha } = req.body;
+    const body = req.body || {};
+    let { email, senha, nome } = body;
+    const inputRaw = String(nome || email || "").trim().normalize("NFC").replace(/\s+/g, " ");
 
-    if (!email || !senha) {
-      return res.status(400).json({ error: "E-mail e senha obrigatórios." });
+    if (!inputRaw) {
+      return res.status(400).json({ error: "Informe seu nome de usuário ou e-mail." });
+    }
+    if (senha === undefined || senha === null || !String(senha).trim()) {
+      return res.status(400).json({ error: "Informe sua senha." });
     }
 
-    email = email.trim().toLowerCase();
+    // Busca usuário por nome ou e-mail
+    const isEmail = inputRaw.includes("@");
+    let usuario;
 
-    const usuario = await Usuario.findOne({ email });
+    if (isEmail) {
+      usuario = await Usuario.findOne({ email: inputRaw.toLowerCase() });
+    } else {
+      // Busca por nome: case-insensitive (marcio, Marcio, MARCIO)
+      const escaped = inputRaw.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      usuario = await Usuario.findOne({ nome: new RegExp(`^${escaped}$`, "i") });
+      if (!usuario && inputRaw.length >= 2) {
+        const flex = escaped.replace(/\s+/g, "\\s*");
+        usuario = await Usuario.findOne({ nome: new RegExp(`^${flex}$`, "i") });
+      }
+    }
+
     if (!usuario) {
       return res.status(404).json({ error: "Usuário não encontrado." });
     }
@@ -154,6 +249,7 @@ router.post("/login", async (req, res) => {
       usuario: {
         _id: usuario._id,
         nome: usuario.nome,
+        email: usuario.email,
         tipo: usuario.tipo,
         cnpj: usuario.cnpj,
         ramoAtuacao: usuario.ramoAtuacao || "",
@@ -233,6 +329,14 @@ router.put("/:id", auth, async (req, res) => {
     // Se alterar senha, criptografar
     if (dados.senha) {
       dados.senha = await bcrypt.hash(dados.senha, 10);
+    }
+
+    // Para fornecedores: se alterar estado, atualizar alíquota
+    const usuarioAtual = await Usuario.findById(req.params.id);
+    if (usuarioAtual?.tipo === "fornecedor" && dados.estado !== undefined) {
+      const estadoSigla = String(dados.estado).trim().toUpperCase().slice(0, 2);
+      dados.estado = estadoSigla;
+      dados.aliquota = await obterAliquotaPorEstado(estadoSigla);
     }
 
     const atualizado = await Usuario.findByIdAndUpdate(req.params.id, dados, {
