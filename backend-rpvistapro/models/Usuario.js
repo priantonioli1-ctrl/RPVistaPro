@@ -16,7 +16,7 @@ const UsuarioSchema = new mongoose.Schema(
 
     tipo: {
       type: String,
-      enum: ["comprador", "fornecedor"],
+      enum: ["comprador", "fornecedor", "questionario"],
       required: true
     },
 
@@ -33,6 +33,18 @@ const UsuarioSchema = new mongoose.Schema(
       trim: true,
       default: ""
     },
+
+    // Endereço (fornecedor)
+    endereco: { type: String, trim: true, default: "" },
+
+    // Estado UF (fornecedor) — ex.: "SP", "MG"
+    estado: { type: String, trim: true, uppercase: true, default: "", maxLength: 2 },
+
+    // Alíquota ICMS % (fornecedor) — preenchida automaticamente conforme o estado
+    aliquota: { type: Number, default: null },
+
+    // Nome da empresa (fornecedor) — usado no catálogo; quando vazio, usa nome
+    empresa: { type: String, trim: true, default: "" },
 
     // Verificação de email
     emailVerificado: {
