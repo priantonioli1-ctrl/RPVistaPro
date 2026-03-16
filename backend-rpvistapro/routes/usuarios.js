@@ -46,14 +46,18 @@ router.post("/", async (req, res) => {
     }
 
     tipo = String(tipo || "").toLowerCase().trim();
-    // Normalizar variantes de "questionário" → "questionario"
+    // Normalizar variantes de "questionário" → "questionario" (inclui encoding/caracteres especiais)
+    const tipoSemAcento = tipo.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
     if (
       tipo === "questionario" ||
       tipo === "questionário" ||
       tipo.includes("question") ||
       tipo.includes("diagnostico") ||
-      tipo === "questionário (diagnóstico)" ||
-      tipo === "questionario (diagnóstico)"
+      tipo.includes("diagnóstico") ||
+      tipoSemAcento.includes("question") ||
+      tipoSemAcento.includes("diagnostico") ||
+      /question[aá]rio/i.test(tipo) ||
+      /question[aá]rio\s*\(/i.test(tipo)
     ) {
       tipo = "questionario";
     }
