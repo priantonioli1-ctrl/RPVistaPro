@@ -2,8 +2,19 @@
 import express from "express";
 import CatalogoFornecedor from "../models/CatalogoFornecedor.js";
 import EstoqueFornecedor from "../models/EstoqueFornecedor.js";
+import Usuario from "../models/Usuario.js";
 
 const router = express.Router();
+
+async function obterAliquotaDoFornecedor(empresa) {
+  const emp = (empresa || "").trim();
+  if (!emp) return { aliquota: null, estadoSigla: "" };
+  const u = await Usuario.findOne({
+    tipo: "fornecedor",
+    $or: [{ empresa: emp }, { nome: emp }],
+  }).lean();
+  return u ? { aliquota: u.aliquota ?? null, estadoSigla: u.estado || "" } : { aliquota: null, estadoSigla: "" };
+}
 // ✅ POST - Criar ou atualizar catálogo do fornecedor
 router.post("/", async (req, res) => {
   try {
@@ -46,6 +57,9 @@ router.post("/", async (req, res) => {
     });
     if (existente) {
       existente.catalogo = catalogoLimpo;
+      const { aliquota, estadoSigla } = await obterAliquotaDoFornecedor(empresa.trim());
+      existente.aliquota = aliquota;
+      existente.estadoSigla = estadoSigla;
       await existente.save();
 
       console.log(
@@ -60,10 +74,13 @@ router.post("/", async (req, res) => {
     }
 
     // 🆕 Cria novo catálogo
+    const { aliquota, estadoSigla } = await obterAliquotaDoFornecedor(empresa.trim());
     const novoCatalogo = new CatalogoFornecedor({
       empresa: empresa.trim(),
       comprador: compradorVal,
       catalogo: catalogoLimpo,
+      aliquota,
+      estadoSigla,
     });
 
     await novoCatalogo.save();
@@ -100,6 +117,13 @@ router.get("/", async (req, res) => {
     const resultado = [];
     for (const doc of todos) {
       const empresa = (doc.empresa || "").toString().trim();
+      let aliquota = doc.aliquota;
+      let estadoSigla = doc.estadoSigla || "";
+      if (aliquota == null && empresa) {
+        const d = await obterAliquotaDoFornecedor(empresa);
+        aliquota = d.aliquota;
+        estadoSigla = d.estadoSigla;
+      }
       let estoqueMap = new Map();
       const est = await EstoqueFornecedor.findOne({ empresa }).lean();
       if (est && Array.isArray(est.itens)) {
@@ -115,7 +139,7 @@ router.get("/", async (req, res) => {
         const disponivel = estoqueMap.get(chave) ?? 0;
         return { ...item, disponivel };
       });
-      resultado.push({ ...doc, catalogo });
+      resultado.push({ ...doc, catalogo, aliquota, estadoSigla });
     }
     return res.json(resultado);
   } catch (err) {

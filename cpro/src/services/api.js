@@ -1,5 +1,7 @@
 // src/services/api.js
-const API_URL = process.env.REACT_APP_API_URL || "http://localhost:4001";
+import { getApiUrl } from "../utils/apiUrl";
+
+const API_URL = getApiUrl();
 
 
 // ========================================================
@@ -121,6 +123,17 @@ export async function cadastrarUsuario(dados) {
   });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(data.error || "Erro ao cadastrar usuário");
+  return data;
+}
+
+export async function cadastrarUsuarioQuestionario(nome, email, senha) {
+  const res = await fetch(`${API_URL}/api/usuarios/cadastro-questionario`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ nome, email, senha }),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || "Erro ao cadastrar");
   return data;
 }
 

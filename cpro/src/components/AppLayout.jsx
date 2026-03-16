@@ -14,7 +14,7 @@ const TITLES = {
   "/produtos-venda": "Meus Produtos",
   "/fichas-tecnicas": "Fichas Técnicas",
   "/frente-de-loja": "Frente de Loja",
-  "/cardapio-pdv": "Cardápio PDV",
+  "/cardapio-pdv": "Catálogo PDV",
   "/proposta": "Nova Proposta",
   "/nova-proposta": "Nova Proposta",
   "/propostas": "Propostas",
@@ -23,6 +23,10 @@ const TITLES = {
   "/comandas": "Comandas",
   "/caixa": "Caixa",
   "/documentos-contabilidade": "Notas Fiscais",
+  "/entrada-por-nota-fiscal": "Entrada por NF",
+  "/comprador/certificado-digital": "Certificado Digital",
+  "/impressora-fiscal": "Impressora Fiscal",
+  "/configuracao-nfce": "Configuração NFC-e",
   "/nova-cotacao": "Nova Cotação",
   "/catalogo-comprador": "Catálogo / Cotação",
   "/meus-pedidos": "Meus Pedidos",
@@ -31,6 +35,7 @@ const TITLES = {
   "/estoque": "Controle de Estoque",
   "/comprador/perfil-comprador": "Perfil",
   "/metricas": "Métricas",
+  "/estoque/metricas": "Métricas do Estoque",
   "/historico-compras": "Histórico de Compras",
   "/meu-catalogo": "Catálogo",
   "/requisicao-estoque": "Requisição de Estoque",
@@ -43,6 +48,9 @@ const TITLES = {
   "/fornecedor/notas-fiscais": "Notas Fiscais",
   "/catalogo-fornecedor": "Meu Catálogo",
   "/fornecedor/clientes": "Clientes",
+  "/questionario": "Questionário",
+  "/meus-diagnosticos": "Meus diagnósticos",
+  "/dre": "DRE",
 };
 
 // Grupos do menu comprador (setorizado) – Frente de Loja em primeiro
@@ -51,10 +59,14 @@ const NAV_COMPRADOR_GROUPS = [
     id: "frente-de-loja",
     label: "Frente de Loja",
     items: [
-      { path: "/frente-de-loja", label: "PDV" },
-      { path: "/cardapio-pdv", label: "Cardápio PDV" },
+      { path: "/frente-de-loja", label: "Venda" },
+      { path: "/cardapio-pdv", label: "Catálogo PDV" },
       { path: "/comandas", label: "Comandas" },
       { path: "/caixa", label: "Caixa" },
+      { path: "/impressora-fiscal", label: "Impressora Fiscal" },
+      { path: "/nova-proposta", label: "Nova proposta" },
+      { path: "/propostas", label: "Propostas" },
+      { path: "/produtos-orcamento", label: "Modelos" },
     ],
   },
   {
@@ -73,42 +85,26 @@ const NAV_COMPRADOR_GROUPS = [
     label: "Estoque",
     items: [
       { path: "/estoque", label: "Controle de estoque" },
+      { path: "/estoque/metricas", label: "Métricas" },
+      { path: "/entrada-por-nota-fiscal", label: "Entrada por NF" },
       { path: "/contagem-estoque", label: "Contagem" },
       { path: "/painel-requisicoes", label: "Saída de mercadorias" },
-    ],
-  },
-  {
-    id: "contabilidade",
-    label: "Contabilidade",
-    items: [
-      { path: "/documentos-contabilidade", label: "Notas fiscais" },
-    ],
-  },
-  {
-    id: "recursos-humanos",
-    label: "Recursos Humanos",
-    items: [
-      { path: "/cadastro-funcionarios", label: "Funcionários" },
-      { path: "/ponto", label: "Registrar ponto" },
-      { path: "/relatorios-funcionarios", label: "Gerar relatórios" },
     ],
   },
   {
     id: "administrativo",
     label: "Administrativo",
     items: [
+      { path: "/dre", label: "DRE" },
       { path: "/produtos-venda", label: "Meus produtos" },
       { path: "/fichas-tecnicas", label: "Fichas técnicas" },
+      { path: "/comprador/certificado-digital", label: "Certificado digital" },
+      { path: "/configuracao-nfce", label: "Config. NFC-e" },
       { path: "/comprador/perfil-comprador", label: "Perfil" },
-    ],
-  },
-  {
-    id: "venda-personalizada",
-    label: "Venda Personalizada",
-    items: [
-      { path: "/nova-proposta", label: "Nova proposta" },
-      { path: "/propostas", label: "Propostas" },
-      { path: "/produtos-orcamento", label: "Modelos" },
+      { path: "/documentos-contabilidade", label: "Notas fiscais" },
+      { path: "/cadastro-funcionarios", label: "Funcionários" },
+      { path: "/ponto", label: "Registrar ponto" },
+      { path: "/relatorios-funcionarios", label: "Gerar relatórios" },
     ],
   },
 ];
@@ -143,14 +139,16 @@ function getTitle(pathname, usuario) {
 }
 
 function getRole(pathname) {
+  const usuario = JSON.parse(sessionStorage.getItem("usuario") || "{}");
+  const tipo = (usuario.tipo || "").toLowerCase();
+  if (tipo === "questionario") return "questionario";
   const fornecedorPaths = [
     "/fornecedor/",
     "/catalogo-fornecedor",
     "/historico-vendas",
   ];
   if (fornecedorPaths.some((p) => pathname.startsWith(p))) return "fornecedor";
-  const usuario = JSON.parse(sessionStorage.getItem("usuario") || "{}");
-  if ((usuario.tipo || "").toLowerCase() === "fornecedor") return "fornecedor";
+  if (tipo === "fornecedor") return "fornecedor";
   return "comprador";
 }
 
@@ -199,6 +197,18 @@ export default function AppLayout() {
     }
   }, [usuario, pathname, navigate]);
 
+  // Questionário: só pode acessar /questionario ou /meus-diagnosticos
+  useEffect(() => {
+    const tipo = (usuario?.tipo || "").toLowerCase();
+    const pathsPermitidos = ["/questionario", "/meus-diagnosticos"];
+    const permitido = pathsPermitidos.some(
+      (p) => pathname === p || pathname.startsWith(p + "/")
+    );
+    if (tipo === "questionario" && !permitido) {
+      navigate("/questionario", { replace: true });
+    }
+  }, [usuario, pathname, navigate]);
+
   function handleLogout() {
     sessionStorage.removeItem("usuario");
     sessionStorage.removeItem("token");
@@ -230,7 +240,24 @@ export default function AppLayout() {
         </div>
         <nav className="layout-sidebar-nav">
           <div className="layout-nav-section">Menu</div>
-          {role === "fornecedor" ? (
+          {role === "questionario" ? (
+            <>
+              <button
+                type="button"
+                className={`layout-nav-item ${pathname === "/questionario" ? "active" : ""}`}
+                onClick={() => navigate("/questionario")}
+              >
+                Questionário
+              </button>
+              <button
+                type="button"
+                className={`layout-nav-item ${pathname === "/meus-diagnosticos" ? "active" : ""}`}
+                onClick={() => navigate("/meus-diagnosticos")}
+              >
+                Meus diagnósticos
+              </button>
+            </>
+          ) : role === "fornecedor" ? (
             NAV_FORNECEDOR.map((item) => (
               <button
                 key={item.path}
@@ -290,7 +317,7 @@ export default function AppLayout() {
           </div>
         </header>
         <main
-        className={`layout-content ${pathname === "/nova-cotacao" || pathname === "/catalogo-comprador" || pathname === "/meu-catalogo" || pathname === "/estoque" || pathname === "/contagem-estoque" || pathname === "/painel-requisicoes" || pathname === "/frente-de-loja" || pathname === "/cardapio-pdv" || pathname === "/proposta" || pathname === "/nova-proposta" || pathname.startsWith("/proposta/") || pathname.startsWith("/nova-proposta/") || pathname === "/propostas" || pathname.startsWith("/propostas/") ? "layout-content-nova-cotacao" : ""}`}
+        className={`layout-content ${pathname === "/nova-cotacao" || pathname === "/catalogo-comprador" || pathname === "/meu-catalogo" || pathname === "/estoque" || pathname === "/estoque/metricas" || pathname === "/contagem-estoque" || pathname === "/painel-requisicoes" || pathname === "/frente-de-loja" || pathname === "/cardapio-pdv" || pathname === "/proposta" || pathname === "/nova-proposta" || pathname.startsWith("/proposta/") || pathname.startsWith("/nova-proposta/") || pathname === "/propostas" || pathname.startsWith("/propostas/") ? "layout-content-nova-cotacao" : ""}`}
         >
           <Outlet />
         </main>

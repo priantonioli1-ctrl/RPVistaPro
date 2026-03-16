@@ -3,6 +3,7 @@ import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import Caixa from "../models/Caixa.js";
 import Comanda from "../models/Comanda.js";
+import Venda from "../models/Venda.js";
 import Usuario from "../models/Usuario.js";
 
 const router = express.Router();
@@ -23,6 +24,26 @@ function auth(req, res, next) {
 function getEmpresaId(req) {
   return req.user?.compradorId || req.user?.id || req.user?._id;
 }
+
+// POST /verificar-senha-abertura — Verificar senha de quem abriu o caixa (para aplicar desconto)
+router.post("/verificar-senha-abertura", auth, async (req, res) => {
+  try {
+    const empresaId = getEmpresaId(req);
+    if (!empresaId) return res.status(400).json({ error: "Empresa não identificada." });
+    const { senha } = req.body;
+    if (!senha) return res.status(400).json({ error: "Senha obrigatória." });
+    const caixa = await Caixa.findOne({ empresa: empresaId, status: "aberto" });
+    if (!caixa) return res.status(400).json({ error: "Caixa não está aberto. Abra o caixa para aplicar desconto." });
+    const usuarioAbertura = await Usuario.findById(caixa.usuario).select("senha");
+    if (!usuarioAbertura) return res.status(404).json({ error: "Usuário que abriu o caixa não encontrado." });
+    const ok = await bcrypt.compare(senha, usuarioAbertura.senha);
+    if (!ok) return res.status(401).json({ error: "Senha incorreta. Informe a senha de quem abriu o caixa." });
+    res.json({ ok: true });
+  } catch (err) {
+    console.error("Erro ao verificar senha abertura:", err);
+    res.status(500).json({ error: "Erro ao verificar senha." });
+  }
+});
 
 // POST /confirmar-senha — Verificar senha do usuário (para operações sensíveis)
 router.post("/confirmar-senha", auth, async (req, res) => {
@@ -147,11 +168,33 @@ router.get("/conferencia/:id", auth, async (req, res) => {
       .lean();
     if (!caixa) return res.status(404).json({ error: "Caixa não encontrado." });
     const comandas = await Comanda.find({ caixaId: caixa._id }).lean();
-    const totalVendas = comandas.reduce((s, c) => s + (c.total || 0), 0);
+    const vendas = await Venda.find({ caixaId: caixa._id }).lean();
+
+    const totalVendas = comandas.reduce((s, c) => s + (c.total || 0), 0) + vendas.reduce((s, v) => s + (v.total || 0), 0);
+
+    // Agrupar por forma de pagamento
+    const porFormaPagamento = {};
+
+    comandas.forEach((c) => {
+      const fp = (c.formaPagamento || "Dinheiro").trim();
+      porFormaPagamento[fp] = (porFormaPagamento[fp] ?? 0) + (c.total || 0);
+    });
+    vendas.forEach((v) => {
+      const fp = (v.formaPagamento || "Dinheiro").trim();
+      porFormaPagamento[fp] = (porFormaPagamento[fp] ?? 0) + (v.total || 0);
+    });
+
+    const resumoFormas = Object.entries(porFormaPagamento)
+      .filter(([, v]) => v > 0)
+      .map(([forma, valor]) => ({ forma, valor }))
+      .sort((a, b) => b.valor - a.valor);
+
     res.json({
       caixa,
       comandas,
+      vendas,
       totalVendas,
+      resumoFormas,
       diferenca: (caixa.valorFechamento || 0) - (caixa.valorAbertura || 0) - totalVendas,
     });
   } catch (err) {

@@ -1,0 +1,14 @@
+{
+  "name": "agente-impressao-rpvistapro",
+  "version": "1.0.0",
+  "description": "Agente local para impressão de cupom fiscal - recebe dados da venda e imprime",
+  "main": "server.js",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "cors": "^2.8.5"
+  }
+}

@@ -2,8 +2,142 @@ import express from "express";
 import mongoose from "mongoose";
 import Estoque from "../models/Estoque.js";
 import Catalogo from "../models/Catalogo.js";
+import Venda from "../models/Venda.js";
+import MovimentoEstoque from "../models/MovimentoEstoque.js";
 
 const router = express.Router();
+
+// ============================================
+// GET /api/estoque/metricas/:compradorId
+// relatorio: estoqueExcedente | produtosMenosSaida | todasSaidas | todasEntradas | proximosValidade | abaixoMinimo
+// dias, apenasBonificados (para entradas)
+// ============================================
+router.get("/metricas/:compradorId", async (req, res) => {
+  try {
+    const compradorId = req.params.compradorId.trim();
+    const { dias = 30, relatorio = "produtosMenosSaida", apenasBonificados } = req.query;
+    const diasNum = Math.min(Math.max(Number(dias) || 30, 7), 365);
+    const filtrarBonificados = apenasBonificados === "true" || apenasBonificados === "1";
+
+    if (!mongoose.Types.ObjectId.isValid(compradorId)) {
+      return res.status(400).json({ error: "ID de empresa inválido." });
+    }
+    const empresaId = new mongoose.Types.ObjectId(compradorId);
+
+    const dataInicio = new Date();
+    dataInicio.setDate(dataInicio.getDate() - diasNum);
+    dataInicio.setHours(0, 0, 0, 0);
+
+    const estoque = await Estoque.findOne({ empresa: empresaId }).lean();
+    const vendas = await Venda.find({
+      empresa: empresaId,
+      createdAt: { $gte: dataInicio },
+    }).lean();
+
+    let resultado = { relatorio, diasAnalise: diasNum };
+
+    if (relatorio === "estoqueExcedente") {
+      resultado.dados = (estoque?.itens || [])
+        .filter((i) => {
+          const qtd = Number(i.quantidade) || 0;
+          const emTransito = Number(i.emTransito) || 0;
+          const maximo = Number(i.maximo) || 0;
+          return maximo > 0 && qtd + emTransito > maximo;
+        })
+        .map((i) => ({
+          nome: i.nome,
+          unidade: i.unidade || "un",
+          quantidade: i.quantidade,
+          emTransito: i.emTransito || 0,
+          maximo: i.maximo,
+          excedente: (Number(i.quantidade) || 0) + (Number(i.emTransito) || 0) - (Number(i.maximo) || 0),
+        }))
+        .sort((a, b) => b.excedente - a.excedente);
+    } else if (relatorio === "produtosMenosSaida") {
+      const saidaPorProduto = new Map();
+      vendas.forEach((v) => {
+        (v.itens || []).forEach((i) => {
+          const chave = `${(i.nome || "").toLowerCase()}::${(i.unidade || "un").toLowerCase()}`;
+          const atual = saidaPorProduto.get(chave) || { nome: i.nome, unidade: i.unidade || "un", quantidade: 0 };
+          atual.quantidade += Number(i.quantidade) || 0;
+          saidaPorProduto.set(chave, atual);
+        });
+      });
+      resultado.dados = Array.from(saidaPorProduto.values())
+        .sort((a, b) => a.quantidade - b.quantidade)
+        .map((p) => ({ nome: p.nome, unidade: p.unidade, quantidade: p.quantidade }));
+    } else if (relatorio === "todasSaidas") {
+      const saidas = [];
+      vendas.forEach((v) => {
+        (v.itens || []).forEach((i) => {
+          saidas.push({
+            data: v.createdAt,
+            produto: i.nome,
+            unidade: i.unidade || "un",
+            quantidade: i.quantidade,
+            total: (i.quantidade || 0) * (i.precoUnitario || 0),
+            vendaId: v._id,
+          });
+        });
+      });
+      resultado.dados = saidas.sort((a, b) => new Date(b.data) - new Date(a.data));
+      resultado.totalRegistros = saidas.length;
+    } else if (relatorio === "todasEntradas") {
+      const filtro = { empresa: empresaId, tipo: "entrada", data: { $gte: dataInicio } };
+      if (filtrarBonificados) filtro.bonificacao = true;
+      const entradas = await MovimentoEstoque.find(filtro).sort({ data: -1 }).lean();
+      resultado.dados = entradas.map((e) => ({
+        data: e.data,
+        produto: e.produto,
+        unidade: e.unidade || "un",
+        quantidade: e.quantidade,
+        fornecedor: e.fornecedor,
+        nf: e.nf,
+        bonificacao: e.bonificacao,
+        validade: e.validade,
+        origem: e.origem,
+      }));
+      resultado.totalRegistros = entradas.length;
+    } else if (relatorio === "proximosValidade") {
+      const hoje = new Date();
+      hoje.setHours(0, 0, 0, 0);
+      const limiteValidade = new Date();
+      limiteValidade.setDate(limiteValidade.getDate() + 90);
+      resultado.dados = (estoque?.itens || [])
+        .filter((i) => i.validadeProxima && new Date(i.validadeProxima) <= limiteValidade)
+        .map((i) => ({
+          nome: i.nome,
+          unidade: i.unidade || "un",
+          quantidade: i.quantidade,
+          validadeProxima: i.validadeProxima,
+          diasRestantes: Math.ceil((new Date(i.validadeProxima) - hoje) / (1000 * 60 * 60 * 24)),
+        }))
+        .sort((a, b) => new Date(a.validadeProxima) - new Date(b.validadeProxima));
+    } else if (relatorio === "abaixoMinimo") {
+      resultado.dados = (estoque?.itens || [])
+        .filter((i) => {
+          const qtd = Number(i.quantidade) || 0;
+          const emTransito = Number(i.emTransito) || 0;
+          const minimo = Number(i.minimo) || 0;
+          return minimo > 0 && qtd + emTransito < minimo;
+        })
+        .map((i) => ({
+          nome: i.nome,
+          unidade: i.unidade || "un",
+          quantidade: i.quantidade,
+          minimo: i.minimo,
+          emTransito: i.emTransito || 0,
+        }));
+    } else {
+      resultado.dados = [];
+    }
+
+    res.json(resultado);
+  } catch (err) {
+    console.error("❌ Erro ao buscar métricas:", err);
+    res.status(500).json({ error: "Erro ao buscar métricas." });
+  }
+});
 
 // ============================================
 // GET /api/estoque/:empresaId
@@ -33,6 +167,7 @@ router.get("/:compradorId", async (req, res) => {
       const novosItens = listaCatalogo.map((item) => ({
         nome: item.nome,
         unidade: item.unidade || "un",
+        codigoBarras: (item.codigoBarras || "").trim() || "",
         quantidade: 0,
         minimo: 0,
         maximo: 0,
@@ -50,13 +185,21 @@ router.get("/:compradorId", async (req, res) => {
     }
 
     // Sincronização com o catálogo: planilha de contagem real reflete sempre o catálogo
-    const nomesCatalogo = new Set(
-      listaCatalogo.map((c) => (c.nome || "").trim().toLowerCase()).filter(Boolean)
+    const chavesCatalogo = new Set(
+      listaCatalogo
+        .filter((c) => (c.nome || "").trim())
+        .map((c) => `${(c.nome || "").trim().toLowerCase()}::${((c.unidade || "").trim() || "un").toLowerCase()}`)
     );
     const mapaCatalogo = new Map();
     listaCatalogo.forEach((c) => {
       const nomeNorm = (c.nome || "").trim().toLowerCase();
-      if (nomeNorm) mapaCatalogo.set(nomeNorm, { nome: (c.nome || "").trim(), unidade: (c.unidade || "").trim() || "un" });
+      const unidadeNorm = ((c.unidade || "").trim() || "un").toLowerCase();
+      const chave = `${nomeNorm}::${unidadeNorm}`;
+      if (nomeNorm) mapaCatalogo.set(chave, {
+        nome: (c.nome || "").trim(),
+        unidade: (c.unidade || "").trim() || "un",
+        codigoBarras: (c.codigoBarras || "").trim() || "",
+      });
     });
 
     let alterado = false;
@@ -64,8 +207,8 @@ router.get("/:compradorId", async (req, res) => {
     // 1) Remover do estoque itens que não estão mais no catálogo
     const antes = estoque.itens.length;
     estoque.itens = estoque.itens.filter((i) => {
-      const n = (i.nome || "").toLowerCase();
-      if (nomesCatalogo.has(n)) return true;
+      const chave = `${(i.nome || "").toLowerCase()}::${(i.unidade || "un").toLowerCase()}`;
+      if (chavesCatalogo.has(chave)) return true;
       alterado = true;
       return false;
     });
@@ -74,26 +217,38 @@ router.get("/:compradorId", async (req, res) => {
       console.log(`🔄 Estoque: ${antes - estoque.itens.length} item(ns) removido(s) (fora do catálogo).`);
     }
 
-    // 2) Atualizar nome/unidade dos que existem e acrescentar os novos
-    const nomesExistentes = new Set(estoque.itens.map((i) => (i.nome || "").toLowerCase()));
+    // 2) Atualizar nome/unidade/codigoBarras dos que existem e acrescentar os novos
+    const chavesExistentes = new Set(
+      estoque.itens.map((i) => `${(i.nome || "").toLowerCase()}::${(i.unidade || "un").toLowerCase()}`)
+    );
     for (const item of listaCatalogo) {
       const nomeNorm = (item.nome || "").trim().toLowerCase();
+      const unidadeNorm = ((item.unidade || "").trim() || "un").toLowerCase();
       if (!nomeNorm) continue;
-      const ref = mapaCatalogo.get(nomeNorm);
+      const chave = `${nomeNorm}::${unidadeNorm}`;
+      const ref = mapaCatalogo.get(chave);
       if (!ref) continue;
 
-      const existente = estoque.itens.find((i) => (i.nome || "").toLowerCase() === nomeNorm);
+      const existente = estoque.itens.find(
+        (i) => (i.nome || "").toLowerCase() === nomeNorm && (i.unidade || "un").toLowerCase() === unidadeNorm
+      );
       if (existente) {
-        if (existente.nome !== ref.nome || (existente.unidade || "un") !== ref.unidade) {
+        if (
+          existente.nome !== ref.nome ||
+          (existente.unidade || "un") !== ref.unidade ||
+          (existente.codigoBarras || "") !== (ref.codigoBarras || "")
+        ) {
           existente.nome = ref.nome;
           existente.unidade = ref.unidade;
+          if (ref.codigoBarras !== undefined) existente.codigoBarras = ref.codigoBarras;
           alterado = true;
         }
       } else {
-        nomesExistentes.add(nomeNorm);
+        chavesExistentes.add(chave);
         estoque.itens.push({
           nome: ref.nome,
           unidade: ref.unidade,
+          codigoBarras: ref.codigoBarras || "",
           quantidade: 0,
           minimo: 0,
           maximo: 0,
@@ -128,7 +283,7 @@ router.get("/:compradorId", async (req, res) => {
 router.post("/entrada/:compradorId", async (req, res) => {
   try {
     const compradorId = req.params.compradorId.trim();
-    const { produto, quantidade, unidade, fornecedor, nf } = req.body;
+    const { produto, quantidade, unidade, fornecedor, nf, validade, bonificacao } = req.body;
 
     if (!produto || !quantidade) {
       return res
@@ -142,43 +297,163 @@ router.post("/entrada/:compradorId", async (req, res) => {
       return res.status(404).json({ error: "Estoque não encontrado." });
     }
 
+    const dataValidade = validade ? new Date(validade) : null;
+    const qtdNum = Number(quantidade) || 0;
+    const isBonificacao = bonificacao === true || bonificacao === "true" || bonificacao === 1;
+
     const item = estoque.itens.find(
       (i) => i.nome.toLowerCase() === produto.toLowerCase()
     );
 
     if (item) {
-      item.quantidade += Number(quantidade);
+      item.quantidade += qtdNum;
       item.ultimaAtualizacao = new Date();
       item.ultimaEntrada = {
         fornecedor: fornecedor || "",
         nf: nf || "",
-        quantidade: Number(quantidade),
+        quantidade: qtdNum,
         data: new Date(),
+        validade: dataValidade,
       };
+      if (dataValidade) {
+        if (!item.validadeProxima || dataValidade < item.validadeProxima) {
+          item.validadeProxima = dataValidade;
+        }
+      }
     } else {
       estoque.itens.push({
         nome: produto,
         unidade: unidade || "un",
-        quantidade: Number(quantidade),
+        quantidade: qtdNum,
         minimo: 0,
         maximo: 0,
         emTransito: 0,
         contagemReal: 0,
+        validadeProxima: dataValidade,
         ultimaAtualizacao: new Date(),
         ultimaEntrada: {
           fornecedor: fornecedor || "",
           nf: nf || "",
-          quantidade: Number(quantidade),
+          quantidade: qtdNum,
           data: new Date(),
+          validade: dataValidade,
         },
       });
     }
 
     await estoque.save();
 
+    // Registrar no histórico de movimentações para relatórios
+    await MovimentoEstoque.create({
+      empresa: compradorId,
+      tipo: "entrada",
+      produto,
+      unidade: unidade || "un",
+      quantidade: qtdNum,
+      fornecedor: fornecedor || "",
+      nf: nf || "",
+      bonificacao: isBonificacao,
+      validade: dataValidade,
+      origem: "manual",
+    });
+
     res.json({ message: "Entrada registrada com sucesso." });
   } catch (err) {
     console.error("❌ Erro ao registrar entrada:", err);
+    res.status(500).json({ error: "Erro interno ao registrar entrada." });
+  }
+});
+
+// ============================================
+// POST /api/estoque/entrada-nf/:compradorId
+// Entrada em lote por Nota Fiscal (XML parseado no frontend)
+// Body: { numeroNF, dataEmissao, fornecedor, itens: [{ nome, unidade, quantidade, bonificacao? }] }
+// ============================================
+router.post("/entrada-nf/:compradorId", async (req, res) => {
+  try {
+    const compradorId = req.params.compradorId.trim();
+    const { numeroNF, dataEmissao, fornecedor, itens } = req.body;
+
+    if (!Array.isArray(itens) || itens.length === 0) {
+      return res.status(400).json({ error: "Envie um array de itens com nome, unidade e quantidade." });
+    }
+
+    let estoque = await Estoque.findOne({ empresa: compradorId });
+    if (!estoque) {
+      return res.status(404).json({ error: "Estoque não encontrado." });
+    }
+
+    const nfRef = numeroNF ? String(numeroNF).trim() : "";
+    const fornecedorRef = fornecedor ? String(fornecedor).trim() : "";
+    const dataEntrada = new Date();
+
+    for (const item of itens) {
+      const nome = String(item.nome || "").trim();
+      const unidade = (item.unidade || "un").trim() || "un";
+      const quantidade = Number(item.quantidade) || 0;
+      const isBonificacao = item.bonificacao === true || item.bonificacao === "true" || item.bonificacao === 1;
+      const dataValidade = item.validade ? new Date(item.validade) : null;
+      if (!nome || quantidade <= 0) continue;
+
+      const existente = estoque.itens.find(
+        (i) => (i.nome || "").toLowerCase() === nome.toLowerCase() && (i.unidade || "un") === unidade
+      );
+      if (existente) {
+        existente.quantidade += quantidade;
+        existente.ultimaAtualizacao = new Date();
+        existente.ultimaEntrada = {
+          fornecedor: fornecedorRef,
+          nf: nfRef,
+          quantidade,
+          data: dataEntrada,
+          validade: dataValidade,
+        };
+        if (dataValidade && (!existente.validadeProxima || dataValidade < existente.validadeProxima)) {
+          existente.validadeProxima = dataValidade;
+        }
+      } else {
+        estoque.itens.push({
+          nome,
+          unidade,
+          quantidade,
+          minimo: 0,
+          maximo: 0,
+          emTransito: 0,
+          contagemReal: 0,
+          validadeProxima: dataValidade,
+          ultimaAtualizacao: new Date(),
+          ultimaEntrada: {
+            fornecedor: fornecedorRef,
+            nf: nfRef,
+            quantidade,
+            data: dataEntrada,
+            validade: dataValidade,
+          },
+        });
+      }
+
+      await MovimentoEstoque.create({
+        empresa: compradorId,
+        tipo: "entrada",
+        produto: nome,
+        unidade,
+        quantidade,
+        fornecedor: fornecedorRef,
+        nf: nfRef,
+        bonificacao: isBonificacao,
+        validade: dataValidade,
+        origem: "entrada_nf",
+      });
+    }
+
+    await estoque.save();
+
+    res.json({
+      message: "Entrada por nota fiscal registrada com sucesso.",
+      itensProcessados: itens.filter((i) => i.nome && Number(i.quantidade) > 0).length,
+    });
+  } catch (err) {
+    console.error("❌ Erro ao registrar entrada por NF:", err);
     res.status(500).json({ error: "Erro interno ao registrar entrada." });
   }
 });

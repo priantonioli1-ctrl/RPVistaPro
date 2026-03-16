@@ -5,17 +5,20 @@ import mongoose from "mongoose";
 const ItemSchema = new mongoose.Schema({
   nome: { type: String, required: true },
   unidade: { type: String, default: "un" },
+  codigoBarras: { type: String, trim: true, default: "" },
   quantidade: { type: Number, default: 0 },
   minimo: { type: Number, default: 0 },
   maximo: { type: Number, default: 0 },
   emTransito: { type: Number, default: 0 },
   contagemReal: { type: Number, default: 0 },
   ultimaAtualizacao: { type: Date, default: null },
+  validadeProxima: { type: Date, default: null },
   ultimaEntrada: {
     fornecedor: { type: String },
     nf: { type: String },
     data: { type: Date },
     quantidade: { type: Number },
+    validade: { type: Date },
   },
 });
 

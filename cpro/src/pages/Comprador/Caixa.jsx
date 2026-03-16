@@ -194,6 +194,36 @@ export default function Caixa() {
     }
   }
 
+  async function imprimirResumoCaixa() {
+    if (!conferencia) return;
+    try {
+      const cfgRes = await fetch(`${API_URL}/api/impressora-fiscal?empresa=${encodeURIComponent(getEmpresaId())}`, {
+        headers: getToken() ? { Authorization: `Bearer ${getToken()}` } : {},
+      });
+      const cfg = await cfgRes.json().catch(() => ({}));
+      if (!cfg?.ativo || !cfg?.urlAgente) {
+        Swal.fire("Atenção", "Configure a impressora fiscal em Frente de Loja > Impressora Fiscal.", "warning");
+        return;
+      }
+      const payload = {
+        valorAbertura: conferencia.caixa?.valorAbertura,
+        totalVendas: conferencia.totalVendas,
+        valorFechamento: conferencia.caixa?.valorFechamento,
+        resumoFormas: conferencia.resumoFormas || [],
+        nomeFantasia: cfg.nomeFantasia || "",
+        cnpj: cfg.cnpj || "",
+      };
+      await fetch(cfg.urlAgente.replace(/\/$/, "") + "/imprimir-resumo-caixa", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      Swal.fire("Sucesso", "Resumo enviado para impressão.", "success");
+    } catch (err) {
+      Swal.fire("Erro", err.message, "error");
+    }
+  }
+
   if (!usuarioAtual) return null;
 
   return (
@@ -291,17 +321,35 @@ export default function Caixa() {
         {/* Modal Conferência */}
         {conferencia && (
           <div style={overlay} onClick={() => setConferencia(null)}>
-            <div style={modalConferencia} onClick={(e) => e.stopPropagation()}>
-              <h3 style={{ margin: "0 0 16px", color: "#e6edf3" }}>Conferência de caixa</h3>
+            <div style={{ ...modalConferencia, maxWidth: 480 }} onClick={(e) => e.stopPropagation()}>
+              <h3 style={{ margin: "0 0 16px", color: "#e6edf3" }}>Conferência de caixa — fluxo real</h3>
               <div style={linhasConf}>
                 <div><span style={{ color: "#8b949e" }}>Valor abertura</span> R$ {Number(conferencia.caixa?.valorAbertura || 0).toFixed(2)}</div>
                 <div><span style={{ color: "#8b949e" }}>Total vendas</span> R$ {Number(conferencia.totalVendas || 0).toFixed(2)}</div>
-                <div><span style={{ color: "#8b949e" }}>Valor fechamento</span> R$ {Number(conferencia.caixa?.valorFechamento || 0).toFixed(2)}</div>
                 <div><span style={{ color: "#8b949e" }}>Esperado (abertura + vendas)</span> R$ {(Number(conferencia.caixa?.valorAbertura || 0) + Number(conferencia.totalVendas || 0)).toFixed(2)}</div>
+                <div><span style={{ color: "#8b949e" }}>Valor fechamento (contado)</span> R$ {Number(conferencia.caixa?.valorFechamento || 0).toFixed(2)}</div>
                 <div><span style={{ color: "#8b949e" }}>Diferença</span> <span style={{ color: Math.abs(conferencia.diferenca || 0) > 0.01 ? "#f85149" : "#25C19B" }}>R$ {(conferencia.diferenca || 0).toFixed(2)}</span></div>
               </div>
-              <p style={{ color: "#8b949e", fontSize: "0.875rem", marginTop: 16 }}>Comandas: {conferencia.comandas?.length || 0}</p>
-              <button type="button" onClick={() => setConferencia(null)} style={btnSecundario}>Fechar</button>
+              <div style={{ marginTop: 20, paddingTop: 16, borderTop: BORDER }}>
+                <h4 style={{ margin: "0 0 12px", color: "#e6edf3", fontSize: "0.9375rem" }}>Valor esperado por forma de pagamento</h4>
+                {(conferencia.resumoFormas || []).length === 0 ? (
+                  <p style={{ color: "#8b949e", fontSize: "0.875rem" }}>Nenhuma venda registrada.</p>
+                ) : (
+                  <div style={linhasConf}>
+                    {(conferencia.resumoFormas || []).map((f, i) => (
+                      <div key={i} style={{ display: "flex", justifyContent: "space-between", padding: "4px 0" }}>
+                        <span style={{ color: "#8b949e" }}>{f.forma}</span>
+                        <span style={{ color: "#e6edf3", fontWeight: 600 }}>R$ {Number(f.valor || 0).toFixed(2)}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+              <p style={{ color: "#8b949e", fontSize: "0.875rem", marginTop: 12 }}>Comandas: {conferencia.comandas?.length || 0} · Vendas: {conferencia.vendas?.length || 0}</p>
+              <div style={{ display: "flex", gap: 10, marginTop: 20 }}>
+                <button type="button" onClick={imprimirResumoCaixa} style={btnImprimir}>Imprimir resumo</button>
+                <button type="button" onClick={() => setConferencia(null)} style={btnSecundario}>Fechar</button>
+              </div>
             </div>
           </div>
         )}
@@ -385,3 +433,4 @@ const modalConferencia = { background: "rgba(20,2,42,0.98)", border: BORDER, bor
 const linhasConf = { display: "flex", flexDirection: "column", gap: 8, color: "#e6edf3" };
 const btnPrimario = { padding: "10px 20px", borderRadius: 6, border: "none", background: "var(--gradient-btn-primary)", color: "#0B1C26", fontWeight: 600, cursor: "pointer" };
 const btnSecundario = { padding: "10px 20px", borderRadius: 6, border: BORDER, background: "transparent", color: "#8b949e", fontWeight: 600, cursor: "pointer" };
+const btnImprimir = { padding: "10px 20px", borderRadius: 6, border: "none", background: "var(--gradient-btn-orange)", color: "#fff", fontWeight: 600, cursor: "pointer" };

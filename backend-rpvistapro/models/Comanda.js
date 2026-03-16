@@ -6,6 +6,10 @@ const ItemComandaSchema = new mongoose.Schema(
     unidade: { type: String, default: "un", trim: true },
     quantidade: { type: Number, required: true },
     precoUnitario: { type: Number, required: true },
+    /** Reforma Tributária (EC 132/2023) */
+    categoriaTributaria: { type: String, trim: true, default: "ALÍQUOTA_PADRÃO" },
+    valorIBS: { type: Number, default: 0 },
+    valorCBS: { type: Number, default: 0 },
   },
   { _id: true }
 );
@@ -20,8 +24,11 @@ const ComandaSchema = new mongoose.Schema(
     codigo: { type: String, required: true, trim: true }, // Mesa 1, Comanda 05, etc.
     itens: { type: [ItemComandaSchema], default: [] },
     total: { type: Number, default: 0 },
+    totalIBS: { type: Number, default: 0 },
+    totalCBS: { type: Number, default: 0 },
     status: { type: String, enum: ["aberta", "fechada"], default: "aberta" },
     caixaId: { type: mongoose.Schema.Types.ObjectId, ref: "Caixa", default: null },
+    formaPagamento: { type: String, trim: true, default: "Dinheiro" },
     usuarioAbertura: { type: mongoose.Schema.Types.ObjectId, ref: "Usuario" },
     usuarioFechamento: { type: mongoose.Schema.Types.ObjectId, ref: "Usuario", default: null },
     fechadoEm: { type: Date, default: null },

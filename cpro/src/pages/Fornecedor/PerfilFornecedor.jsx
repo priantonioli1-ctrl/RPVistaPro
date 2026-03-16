@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { ESTADOS } from "../../constants/estados";
 
 const API_URL = process.env.REACT_APP_API_URL || "http://localhost:4001";
 
@@ -11,7 +12,11 @@ export default function PerfilFornecedor() {
     email: "",
     senha: "",
     cnpj: "",
-    tipo: "", // somente exibição
+    tipo: "",
+    endereco: "",
+    estado: "",
+    empresa: "",
+    aliquota: null,
   });
 
   const [loading, setLoading] = useState(true);
@@ -47,6 +52,10 @@ export default function PerfilFornecedor() {
           senha: data.senha,
           cnpj: data.cnpj,
           tipo: data.tipo,
+          endereco: data.endereco || "",
+          estado: data.estado || "",
+          empresa: data.empresa || "",
+          aliquota: data.aliquota ?? null,
         });
 
         setLoading(false);
@@ -68,6 +77,10 @@ export default function PerfilFornecedor() {
   async function salvarAlteracoes() {
     if (!dados.nome || !dados.email || !dados.cnpj) {
       alert("Preencha todos os campos.");
+      return;
+    }
+    if (!dados.estado) {
+      alert("O estado é obrigatório para calcular a alíquota de ICMS.");
       return;
     }
 
@@ -205,6 +218,48 @@ export default function PerfilFornecedor() {
             className="campo-fundo-claro"
           />
 
+          <label style={{ color: "#e6edf3", fontWeight: 600, marginBottom: 4 }}>Nome da empresa (catálogo) *</label>
+          <input
+            name="empresa"
+            value={dados.empresa}
+            onChange={handleChange}
+            placeholder="Nome da empresa usado no catálogo"
+            style={input}
+            className="campo-fundo-claro"
+          />
+
+          <label style={{ color: "#e6edf3", fontWeight: 600, marginBottom: 4 }}>Endereço</label>
+          <input
+            name="endereco"
+            value={dados.endereco}
+            onChange={handleChange}
+            placeholder="Rua, número, bairro, cidade"
+            style={input}
+            className="campo-fundo-claro"
+          />
+
+          <label style={{ color: "#e6edf3", fontWeight: 600, marginBottom: 4 }}>Estado (UF) *</label>
+          <select
+            name="estado"
+            value={dados.estado}
+            onChange={handleChange}
+            style={input}
+            className="campo-fundo-claro"
+          >
+            <option value="">Selecione o estado</option>
+            {ESTADOS.map((e) => (
+              <option key={e.sigla} value={e.sigla}>
+                {e.nome} ({e.sigla}) — ICMS {e.aliquota}%
+              </option>
+            ))}
+          </select>
+
+          {dados.aliquota != null && (
+            <p style={{ color: "#8b949e", fontSize: "0.9rem", margin: 0 }}>
+              Alíquota ICMS do seu estado: {dados.aliquota}% (usada na cotação)
+            </p>
+          )}
+
           <label style={{ color: "#e6edf3", fontWeight: 600, marginBottom: 4 }}>Tipo *</label>
           <input
             disabled
@@ -285,8 +340,8 @@ const input = {
   borderRadius: 4,
   border: BORDER,
   fontSize: "0.9375rem",
-  color: "#1a1a1a",
-  backgroundColor: "#fff",
+  color: "#e6edf3",
+  backgroundColor: "transparent",
   boxSizing: "border-box",
 };
 

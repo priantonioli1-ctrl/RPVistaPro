@@ -1,0 +1,60 @@
+// seed-estados.js - Popula a base de estados com alíquotas de ICMS
+import mongoose from "mongoose";
+import dotenv from "dotenv";
+import Estado from "./models/Estado.js";
+
+dotenv.config();
+
+const ESTADOS = [
+  { sigla: "AC", nome: "Acre", aliquota: 19 },
+  { sigla: "AL", nome: "Alagoas", aliquota: 19.5 },
+  { sigla: "AM", nome: "Amazonas", aliquota: 20 },
+  { sigla: "AP", nome: "Amapá", aliquota: 18 },
+  { sigla: "BA", nome: "Bahia", aliquota: 20.5 },
+  { sigla: "CE", nome: "Ceará", aliquota: 20 },
+  { sigla: "DF", nome: "Distrito Federal", aliquota: 20 },
+  { sigla: "ES", nome: "Espírito Santo", aliquota: 17 },
+  { sigla: "GO", nome: "Goiás", aliquota: 19 },
+  { sigla: "MA", nome: "Maranhão", aliquota: 22.5 },
+  { sigla: "MG", nome: "Minas Gerais", aliquota: 18 },
+  { sigla: "MS", nome: "Mato Grosso do Sul", aliquota: 17 },
+  { sigla: "MT", nome: "Mato Grosso", aliquota: 17 },
+  { sigla: "PA", nome: "Pará", aliquota: 19 },
+  { sigla: "PB", nome: "Paraíba", aliquota: 20 },
+  { sigla: "PE", nome: "Pernambuco", aliquota: 20.5 },
+  { sigla: "PI", nome: "Piauí", aliquota: 21.75 },
+  { sigla: "PR", nome: "Paraná", aliquota: 19.5 },
+  { sigla: "RJ", nome: "Rio de Janeiro", aliquota: 22 },
+  { sigla: "RN", nome: "Rio Grande do Norte", aliquota: 19 },
+  { sigla: "RO", nome: "Rondônia", aliquota: 19.5 },
+  { sigla: "RR", nome: "Roraima", aliquota: 20 },
+  { sigla: "RS", nome: "Rio Grande do Sul", aliquota: 17 },
+  { sigla: "SC", nome: "Santa Catarina", aliquota: 17 },
+  { sigla: "SE", nome: "Sergipe", aliquota: 19.5 },
+  { sigla: "SP", nome: "São Paulo", aliquota: 18 },
+  { sigla: "TO", nome: "Tocantins", aliquota: 20 },
+];
+
+async function seed() {
+  try {
+    await mongoose.connect(process.env.MONGODB_URI || "mongodb://localhost:27017/meubanco");
+    console.log("✅ Conectado ao MongoDB");
+
+    for (const e of ESTADOS) {
+      await Estado.findOneAndUpdate(
+        { sigla: e.sigla },
+        { $set: { nome: e.nome, aliquota: e.aliquota } },
+        { upsert: true, new: true }
+      );
+    }
+
+    console.log(`✅ ${ESTADOS.length} estados cadastrados com sucesso`);
+  } catch (err) {
+    console.error("❌ Erro:", err.message);
+  } finally {
+    await mongoose.disconnect();
+    process.exit(0);
+  }
+}
+
+seed();

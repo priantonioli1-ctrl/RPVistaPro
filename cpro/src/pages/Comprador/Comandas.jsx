@@ -174,13 +174,36 @@ export default function Comandas() {
       Swal.fire("Atenção", "Comanda sem itens. Use Cancelar para descartar.", "warning");
       return;
     }
+    const { value: formaPagamento } = await Swal.fire({
+      title: "Forma de pagamento",
+      html: `
+        <select id="forma-pgto" class="swal2-input" style="width:100%;padding:10px;margin-top:8px">
+          <option value="Dinheiro">Dinheiro</option>
+          <option value="PIX">PIX</option>
+          <option value="Cartão Débito">Cartão Débito</option>
+          <option value="Cartão Crédito">Cartão Crédito</option>
+          <option value="Vale">Vale</option>
+          <option value="Convênio">Convênio</option>
+          <option value="Outro">Outro</option>
+        </select>
+      `,
+      showCancelButton: true,
+      confirmButtonText: "Fechar comanda",
+      confirmButtonColor: "#20b5a6",
+      preConfirm: () => document.getElementById("forma-pgto")?.value || "Dinheiro",
+    });
+    if (!formaPagamento) return;
     try {
       const res = await fetch(`${API_URL}/api/comandas/${c._id}/fechar`, {
         method: "POST",
-        headers: getToken() ? { Authorization: `Bearer ${getToken()}` } : {},
+        headers: {
+          "Content-Type": "application/json",
+          ...(getToken() ? { Authorization: `Bearer ${getToken()}` } : {}),
+        },
+        body: JSON.stringify({ formaPagamento }),
       });
       if (!res.ok) throw new Error("Erro ao fechar.");
-      Swal.fire("Sucesso", `Comanda "${c.codigo}" fechada. Total: R$ ${(c.total || 0).toFixed(2)}`, "success");
+      Swal.fire("Sucesso", `Comanda "${c.codigo}" fechada. Total: R$ ${(c.total || 0).toFixed(2)} (${formaPagamento})`, "success");
       carregar();
     } catch (err) {
       Swal.fire("Erro", err.message, "error");

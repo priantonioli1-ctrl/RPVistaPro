@@ -179,6 +179,8 @@ export default function ResumoCotacao() {
             fornecedores.push({
               nome: f.empresa,
               fornecedorId: keyify(f.empresa),
+              aliquota: f.aliquota != null ? Number(f.aliquota) : null,
+              estadoSigla: f.estadoSigla || "",
               lista: f.catalogo.map((item) => ({
                 nome: item.nome?.trim() || "",
                 unidade: item.unidade?.trim() || "",
@@ -236,9 +238,11 @@ export default function ResumoCotacao() {
         const disponivel = produtoMelhor ? (Number(produtoMelhor.disponivel) ?? 0) : 0;
         const qtd = item.qtd || 1;
         const emFalta = disponivel <= 0 || disponivel < qtd;
+        const fObj = fornecedores.find((x) => x.nome === melhorFornecedor);
+        const aliquotaFornec = fObj?.aliquota ?? null;
         if (!mapaPedidos[melhorFornecedor])
-          mapaPedidos[melhorFornecedor] = [];
-        mapaPedidos[melhorFornecedor].push({
+          mapaPedidos[melhorFornecedor] = { produtos: [], aliquota: aliquotaFornec };
+        mapaPedidos[melhorFornecedor].produtos.push({
           nome: item.nome,
           unidade: item.unidade,
           qtd,
@@ -254,17 +258,22 @@ export default function ResumoCotacao() {
     }
 
     const resumoFinal = Object.keys(mapaPedidos).map((fornecedor) => {
-      const produtos = mapaPedidos[fornecedor];
-      const total = produtos.reduce((s, p) => s + p.total, 0);
+      const dados = mapaPedidos[fornecedor];
+      const produtos = dados.produtos || dados;
+      const aliquota = dados.aliquota ?? (Array.isArray(dados) ? null : dados.aliquota);
+      const total = produtos.reduce((s, p) => s + (p.total || 0), 0);
+      const icmsARecuperar = aliquota != null ? total * aliquota / (100 + aliquota) : 0;
       return {
         fornecedor,
         produtos,
         qtdProdutos: produtos.length,
         total,
+        aliquota,
+        icmsARecuperar,
       };
     });
 
-    const somaTotalGeral = resumoFinal.reduce((s, r) => s + r.total, 0);
+    const somaTotalGeral = resumoFinal.reduce((s, r) => s + (r.total || 0), 0);
     setPedidos(resumoFinal);
     setItensNaoEncontrados(naoEncontrados);
     setTotalGeral(somaTotalGeral);
@@ -311,10 +320,12 @@ export default function ResumoCotacao() {
         (s, prod) => s + (Number(prod.total) || 0),
         0
       );
+      const novoIcmsARecuperar = p.aliquota != null ? novoTotal * p.aliquota / (100 + p.aliquota) : 0;
       return {
         ...p,
         produtos: novosProdutos,
         total: novoTotal,
+        icmsARecuperar: novoIcmsARecuperar,
         qtdProdutos: novosProdutos.length,
       };
     });
@@ -407,10 +418,18 @@ export default function ResumoCotacao() {
                   <strong style={{ textTransform: "uppercase" }}>{p.fornecedor}</strong>
                   <p style={{ margin: 0, fontSize: "0.9rem", color: "#ccc" }}>
                     {p.qtdProdutos} produto(s)
+                    {p.aliquota != null && (
+                      <span style={{ marginLeft: 8 }}> • ICMS {p.aliquota}%</span>
+                    )}
                   </p>
                 </div>
-                <div>
-                  <b>Total:</b> R$ {(Number(p.total) || 0).toFixed(2)}
+                <div style={{ textAlign: "right" }}>
+                  <div><b>Total:</b> R$ {(Number(p.total) || 0).toFixed(2)}</div>
+                  {p.aliquota != null && p.icmsARecuperar != null && p.icmsARecuperar > 0 && (
+                    <div style={{ fontWeight: 600, color: "#27ae60", marginTop: 4, fontSize: "0.9rem" }}>
+                      ICMS a recuperar: R$ {Number(p.icmsARecuperar).toFixed(2)}
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -459,7 +478,13 @@ export default function ResumoCotacao() {
 
       {pedidos.length > 0 && (
         <div style={totalBox}>
-          <strong>Total geral: R$ {totalGeral.toFixed(2)}</strong>
+          <div><strong>Total geral: R$ {totalGeral.toFixed(2)}</strong></div>
+          {(() => {
+            const totalIcms = pedidos.reduce((s, p) => s + (Number(p.icmsARecuperar) || 0), 0);
+            return totalIcms > 0 ? (
+              <div style={{ color: "#27ae60", marginTop: 4 }}>ICMS a recuperar (total): R$ {totalIcms.toFixed(2)}</div>
+            ) : null;
+          })()}
         </div>
       )}
 

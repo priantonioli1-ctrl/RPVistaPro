@@ -27,6 +27,8 @@ const CatalogoFornecedorSchema = new mongoose.Schema(
   index: true,
   default: "", // ✅ opcional e seguro
 },
+    aliquota: { type: Number, default: null },
+    estadoSigla: { type: String, trim: true, uppercase: true, default: "" },
     catalogo: {
       type: [ItemSchema],
       default: [],

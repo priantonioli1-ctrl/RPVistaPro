@@ -2,6 +2,36 @@ import express from "express";
 import Comanda from "../models/Comanda.js";
 import Caixa from "../models/Caixa.js";
 import jwt from "jsonwebtoken";
+import { calcularImpostosReforma } from "../services/reformaTributaria.js";
+
+const CAT_PADRAO = "ALÍQUOTA_PADRÃO";
+
+function formatarItensComImpostos(itens) {
+  if (!Array.isArray(itens)) return [];
+  return itens.map((i) => {
+    const qtd = Number(i.quantidade) || 0;
+    const preco = Number(i.precoUnitario) || 0;
+    const subtotal = qtd * preco;
+    const cat = (i.categoriaTributaria || CAT_PADRAO).trim();
+    const impostos = calcularImpostosReforma(subtotal, cat);
+    return {
+      nome: String(i.nome || "").trim(),
+      unidade: (i.unidade || "un").trim() || "un",
+      quantidade: qtd,
+      precoUnitario: preco,
+      categoriaTributaria: cat,
+      valorIBS: impostos.valorIBS,
+      valorCBS: impostos.valorCBS,
+    };
+  });
+}
+
+function recalcularTotaisComanda(comanda) {
+  const itens = comanda.itens || [];
+  comanda.total = itens.reduce((s, i) => s + (i.quantidade || 0) * (i.precoUnitario || 0), 0);
+  comanda.totalIBS = itens.reduce((s, i) => s + (i.valorIBS || 0), 0);
+  comanda.totalCBS = itens.reduce((s, i) => s + (i.valorCBS || 0), 0);
+}
 
 const router = express.Router();
 const JWT_SECRET = process.env.JWT_SECRET || "segredo123";
@@ -80,10 +110,11 @@ router.put("/:id", auth, async (req, res) => {
     if (!comanda) return res.status(404).json({ error: "Comanda não encontrada." });
     if (comanda.status !== "aberta") return res.status(400).json({ error: "Comanda já fechada." });
     const { itens } = req.body;
-    if (Array.isArray(itens)) {
-      comanda.itens = [...(comanda.itens || []), ...itens];
+    if (Array.isArray(itens) && itens.length > 0) {
+      const novosItens = formatarItensComImpostos(itens);
+      comanda.itens = [...(comanda.itens || []), ...novosItens];
     }
-    comanda.total = (comanda.itens || []).reduce((s, i) => s + (i.quantidade || 0) * (i.precoUnitario || 0), 0);
+    recalcularTotaisComanda(comanda);
     await comanda.save();
     res.json(comanda);
   } catch (err) {
@@ -100,7 +131,7 @@ router.patch("/:id/itens/:itemId", auth, async (req, res) => {
     if (!comanda) return res.status(404).json({ error: "Comanda não encontrada." });
     if (comanda.status !== "aberta") return res.status(400).json({ error: "Comanda já fechada." });
     comanda.itens = (comanda.itens || []).filter((i) => String(i._id) !== req.params.itemId);
-    comanda.total = comanda.itens.reduce((s, i) => s + (i.quantidade || 0) * (i.precoUnitario || 0), 0);
+    recalcularTotaisComanda(comanda);
     await comanda.save();
     res.json(comanda);
   } catch (err) {
@@ -131,6 +162,7 @@ router.post("/:id/cancelar", auth, async (req, res) => {
 router.post("/:id/fechar", auth, async (req, res) => {
   try {
     const empresaId = getEmpresaId(req);
+    const { formaPagamento } = req.body;
     const comanda = await Comanda.findOne({ _id: req.params.id, empresa: empresaId });
     if (!comanda) return res.status(404).json({ error: "Comanda não encontrada." });
     if (comanda.status !== "aberta") return res.status(400).json({ error: "Comanda já fechada." });
@@ -138,6 +170,7 @@ router.post("/:id/fechar", auth, async (req, res) => {
     comanda.status = "fechada";
     comanda.fechadoEm = new Date();
     comanda.usuarioFechamento = req.user.id || req.user._id;
+    comanda.formaPagamento = String(formaPagamento || "Dinheiro").trim();
     if (caixaAberto) comanda.caixaId = caixaAberto._id;
     await comanda.save();
     res.json({ message: "Comanda fechada.", comanda });

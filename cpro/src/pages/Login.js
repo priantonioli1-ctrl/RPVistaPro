@@ -2,38 +2,53 @@ import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import logo from "../assets/logo.png";
 import "../styles/theme.css";
-
-const API_URL = process.env.REACT_APP_API_URL || "http://localhost:4001";
+import { getApiUrl } from "../utils/apiUrl";
 
 export default function Login() {
-  const [email, setEmail] = useState("");
+  const [nome, setNome] = useState("");
   const [senha, setSenha] = useState("");
+  const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
   async function handleLogin(e) {
     e.preventDefault();
 
-    if (!email.trim() || !senha.trim()) {
-      alert("Informe e-mail e senha.");
+    if (!nome.trim()) {
+      alert("Informe seu nome de usuário (ex: marcio, priscilla, guilherme).");
+      return;
+    }
+    if (!senha.trim()) {
+      alert("Informe sua senha.");
       return;
     }
 
+    setLoading(true);
     try {
-      const resp = await fetch(`${API_URL}/api/usuarios/login`, {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 90000);
+      const baseUrl = getApiUrl();
+
+      const loginInput = String(nome || "").trim().normalize("NFC").replace(/\s+/g, " ");
+      const resp = await fetch(`${baseUrl}/api/usuarios/login`, {
+        signal: controller.signal,
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, senha }),
+        body: JSON.stringify({ nome: loginInput, email: loginInput, senha: senha.trim() }),
       });
+
+      clearTimeout(timeoutId);
 
       let data;
       try {
         data = await resp.json();
-      } catch {
-        alert("Resposta inválida do servidor.");
+      } catch (parseErr) {
+        setLoading(false);
+        alert("Resposta inválida do servidor. Verifique se o backend está rodando.");
         return;
       }
 
       if (!resp.ok) {
+        setLoading(false);
         alert(data.error || "Erro ao realizar login.");
         return;
       }
@@ -41,13 +56,9 @@ export default function Login() {
       const usuario = data.usuario;
 
       if (!usuario || !usuario._id) {
+        setLoading(false);
         alert("Usuário inválido retornado pelo servidor.");
         return;
-      }
-
-      // Avisar se email não está verificado (mas não bloquear login)
-      if (data.emailNaoVerificado || !usuario.emailVerificado) {
-        alert("⚠️ Seu email ainda não foi verificado. Verifique sua caixa de entrada ou spam para ativar sua conta.");
       }
 
       // Limpa qualquer sessão antiga
@@ -59,8 +70,15 @@ export default function Login() {
         sessionStorage.setItem("token", data.token);
       }
 
-      // Tipo em minúsculo para comparação (backend pode retornar "Comprador" em alguns casos)
-      const tipo = (usuario.tipo || "").toLowerCase();
+      // Tipo em minúsculo para comparação (backend pode retornar variações)
+      const tipoRaw = (usuario.tipo || "").toLowerCase();
+      // Normaliza "questionário" / "questionario" para "questionario"
+      let tipo = tipoRaw.includes("question") ? "questionario" : tipoRaw;
+      // Fallback: usuários questionário usam cnpj 00000000000191 (mesmo se tipo vier incorreto)
+      const cnpjLimpo = String(usuario.cnpj || "").replace(/\D/g, "");
+      if (cnpjLimpo === "00000000000191") {
+        tipo = "questionario";
+      }
 
       // Salva resumo do usuário autenticado
       // Para comprador: compradorId e empresa = próprio _id (um usuário = uma empresa/catálogo)
@@ -69,25 +87,36 @@ export default function Login() {
         nome: usuario.nome,
         tipo,
         cnpj: usuario.cnpj ?? null,
-        email: email.trim().toLowerCase(),
+        email: usuario.email || nome?.trim(),
         emailVerificado: usuario.emailVerificado || false,
         ...(tipo === "comprador" ? { compradorId: usuario._id, empresa: usuario._id } : {}),
+        ...(tipo === "questionario" ? {} : {}),
       };
 
       sessionStorage.setItem("usuario", JSON.stringify(usuarioSessao));
 
-      // Redirecionar conforme tipo (página inicial removida: vai direto para Meus Pedidos / Pedidos)
+      // Redirecionar conforme tipo
       if (tipo === "comprador") {
         navigate("/meus-pedidos");
       } else if (tipo === "fornecedor") {
         navigate("/fornecedor/pedidos");
+      } else if (tipo === "questionario") {
+        navigate("/questionario");
       } else {
-        alert("Tipo de usuário inválido!");
+        setLoading(false);
+        alert("Tipo de usuário inválido! Entre em contato com o suporte. Tipo recebido: " + JSON.stringify(usuario.tipo ?? "(vazio)"));
         return;
       }
     } catch (error) {
+      setLoading(false);
       console.error("Erro de conexão:", error);
-      alert("Erro ao conectar com o servidor.");
+      if (error.name === "AbortError") {
+        alert("O servidor demorou para responder. Se estiver no Render, aguarde até 1 minuto e tente novamente (o servidor pode estar acordando).");
+      } else if (error.message?.includes("Failed to fetch") || error.message?.includes("NetworkError")) {
+        alert("Erro ao conectar com o servidor. Verifique:\n\n• Se o backend está rodando (localhost:4001 ou Render)\n• Sua conexão com a internet\n• Se a URL da API está correta no .env");
+      } else {
+        alert("Erro ao conectar com o servidor.");
+      }
     }
   }
 
@@ -99,19 +128,24 @@ export default function Login() {
       </div>
 
       <form onSubmit={handleLogin} style={formStyle}>
-        <label style={labelStyle}>E-mail</label>
+        <label style={labelStyle}>Nome de usuário ou e-mail</label>
         <input
-          type="email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
+          type="text"
+          name="nome"
+          autoComplete="username"
+          inputMode="text"
+          value={nome}
+          onChange={(e) => setNome(e.target.value)}
           style={inputStyle}
-          placeholder="Digite seu e-mail"
+          placeholder="Ex: marcio, priscilla, guilherme"
           className="login-input"
         />
 
         <label style={labelStyle}>Senha</label>
         <input
           type="password"
+          name="password"
+          autoComplete="current-password"
           value={senha}
           onChange={(e) => setSenha(e.target.value)}
           style={inputStyle}
@@ -119,8 +153,8 @@ export default function Login() {
           className="login-input"
         />
 
-        <button type="submit" style={btnPrimary}>
-          Entrar
+        <button type="submit" style={btnPrimary} disabled={loading}>
+          {loading ? "Entrando..." : "Entrar"}
         </button>
       </form>
 
@@ -194,8 +228,8 @@ const inputStyle = {
   marginBottom: "16px",
   borderRadius: "var(--input-radius)",
   border: "var(--card-border)",
-  background: "var(--input-bg)",
-  color: "var(--input-color)",
+  background: "transparent",
+  color: "#e6edf3",
   fontSize: "1rem",
   outline: "none",
   boxSizing: "border-box",

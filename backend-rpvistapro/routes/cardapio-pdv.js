@@ -1,6 +1,7 @@
 // routes/cardapio-pdv.js — Cardápio do PDV (pratos prontos)
 import express from "express";
 import CardapioPDV from "../models/CardapioPDV.js";
+import Catalogo from "../models/Catalogo.js";
 
 const router = express.Router();
 
@@ -30,6 +31,20 @@ router.get("/categorias", async (req, res) => {
   } catch (err) {
     console.error("Erro ao listar categorias:", err);
     res.status(500).json({ error: "Erro ao listar categorias." });
+  }
+});
+
+// POST /excluir-todos — precisa vir ANTES de /:id para não ser capturado
+router.post("/excluir-todos", async (req, res) => {
+  try {
+    const { empresa } = req.body;
+    const emp = empresa || req.query.empresa;
+    if (!emp) return res.status(400).json({ error: "empresa é obrigatório." });
+    const result = await CardapioPDV.deleteMany({ empresa: String(emp).trim() });
+    res.json({ message: `${result.deletedCount} item(ns) excluído(s).`, deletedCount: result.deletedCount });
+  } catch (err) {
+    console.error("Erro ao excluir todos:", err);
+    res.status(500).json({ error: "Erro ao excluir itens." });
   }
 });
 
@@ -74,11 +89,14 @@ router.get("/:id", async (req, res) => {
   }
 });
 
+const CATEGORIAS_TRIB = ["ALÍQUOTA_ZERO", "ALÍQUOTA_REDUZIDA", "ALÍQUOTA_PADRÃO"];
+
 router.post("/", async (req, res) => {
   try {
-    const { empresa, codigo, codigoBarras, nome, descricao, categoria, preco, unidade } = req.body;
+    const { empresa, codigo, codigoBarras, nome, descricao, categoria, preco, unidade, categoriaTributaria } = req.body;
     if (!empresa || !nome?.trim()) return res.status(400).json({ error: "empresa e nome são obrigatórios." });
     const precoNum = parseFloat(String(preco || 0).replace(",", ".")) || 0;
+    const catTrib = categoriaTributaria?.trim() && CATEGORIAS_TRIB.includes(categoriaTributaria.trim()) ? categoriaTributaria.trim() : "ALÍQUOTA_PADRÃO";
     const novo = await CardapioPDV.create({
       empresa,
       codigo: codigo?.trim() || null,
@@ -88,6 +106,7 @@ router.post("/", async (req, res) => {
       categoria: categoria?.trim() || "Geral",
       preco: precoNum,
       unidade: unidade?.trim() || "un",
+      categoriaTributaria: catTrib,
     });
     res.status(201).json(novo);
   } catch (err) {
@@ -98,7 +117,7 @@ router.post("/", async (req, res) => {
 
 router.put("/:id", async (req, res) => {
   try {
-    const { codigo, codigoBarras, nome, descricao, categoria, preco, unidade, ativo } = req.body;
+    const { codigo, codigoBarras, nome, descricao, categoria, preco, unidade, ativo, categoriaTributaria } = req.body;
     const update = {};
     if (codigo !== undefined) update.codigo = codigo?.trim() || null;
     if (codigoBarras !== undefined) update.codigoBarras = codigoBarras?.trim() || null;
@@ -108,6 +127,9 @@ router.put("/:id", async (req, res) => {
     if (preco !== undefined) update.preco = parseFloat(String(preco).replace(",", ".")) || 0;
     if (unidade !== undefined) update.unidade = unidade?.trim() || "un";
     if (ativo !== undefined) update.ativo = !!ativo;
+    if (categoriaTributaria !== undefined && CATEGORIAS_TRIB.includes(categoriaTributaria?.trim())) {
+      update.categoriaTributaria = categoriaTributaria.trim();
+    }
     const atualizado = await CardapioPDV.findByIdAndUpdate(req.params.id, { $set: update }, { new: true }).lean();
     if (!atualizado) return res.status(404).json({ error: "Item não encontrado." });
     res.json(atualizado);
@@ -126,6 +148,40 @@ router.delete("/:id", async (req, res) => {
   }
 });
 
+// POST /sincronizar-codigo-barras — Copia codigoBarras do Catálogo para itens do Cardápio PDV (match por nome+unidade)
+router.post("/sincronizar-codigo-barras", async (req, res) => {
+  try {
+    const { empresa } = req.body;
+    if (!empresa) return res.status(400).json({ error: "empresa é obrigatório." });
+
+    const catalogo = await Catalogo.findOne({ empresa }).lean();
+    if (!catalogo?.catalogo?.length) {
+      return res.status(404).json({ error: "Catálogo não encontrado ou vazio." });
+    }
+    const mapaCat = new Map();
+    catalogo.catalogo.forEach((c) => {
+      const chave = `${(c.nome || "").trim().toLowerCase()}::${((c.unidade || "").trim() || "un").toLowerCase()}`;
+      if ((c.codigoBarras || "").trim()) mapaCat.set(chave, c.codigoBarras.trim());
+    });
+
+    const itensPDV = await CardapioPDV.find({ empresa });
+    let atualizados = 0;
+    for (const item of itensPDV) {
+      const chave = `${(item.nome || "").trim().toLowerCase()}::${(item.unidade || "un").trim().toLowerCase()}`;
+      const codigoBarras = mapaCat.get(chave);
+      if (codigoBarras && !(item.codigoBarras || "").trim()) {
+        item.codigoBarras = codigoBarras;
+        await item.save();
+        atualizados++;
+      }
+    }
+    res.json({ message: `${atualizados} item(ns) atualizado(s) com código de barras do catálogo.`, atualizados });
+  } catch (err) {
+    console.error("Erro ao sincronizar códigos de barras:", err);
+    res.status(500).json({ error: "Erro ao sincronizar." });
+  }
+});
+
 // POST /importar — Recebe itens parseados do frontend (xlsx, xls, csv)
 router.post("/importar", async (req, res) => {
   try {
@@ -133,22 +189,32 @@ router.post("/importar", async (req, res) => {
     if (!empresa) return res.status(400).json({ error: "empresa é obrigatório." });
     if (!Array.isArray(itens) || itens.length === 0) return res.status(400).json({ error: "Envie um array de itens." });
 
-    const criados = await CardapioPDV.insertMany(
-      itens.map((r) => ({
-        empresa,
-        codigo: r.codigo?.trim() || null,
-        codigoBarras: r.codigoBarras?.trim() || null,
-        nome: (r.nome || r.produto || "").trim(),
-        descricao: (r.descricao || "").trim() || "",
-        categoria: (r.categoria || r.secao || r.seção || "Geral").trim() || "Geral",
-        preco: parseFloat(String(r.preco || r.valor || 0).replace(",", ".")) || 0,
-        unidade: (r.unidade || "un").trim() || "un",
-      }))
-    );
+    const toStr = (v) => (v != null ? String(v).trim() : "");
+    const docs = itens
+      .map((r) => {
+        const nome = toStr(r.nome || r.produto);
+        if (!nome) return null;
+        const catTrib = toStr(r.categoriaTributaria || r.categoria_tributaria);
+        return {
+          empresa,
+          codigo: toStr(r.codigo) || null,
+          codigoBarras: toStr(r.codigoBarras) || null,
+          nome,
+          descricao: toStr(r.descricao) || "",
+          categoria: toStr(r.categoria || r.secao || r.seção) || "Geral",
+          preco: parseFloat(String(r.preco ?? r.valor ?? 0).replace(",", ".")) || 0,
+          unidade: toStr(r.unidade) || "un",
+          categoriaTributaria: CATEGORIAS_TRIB.includes(catTrib) ? catTrib : "ALÍQUOTA_PADRÃO",
+        };
+      })
+      .filter(Boolean);
+    if (docs.length === 0) return res.status(400).json({ error: "Nenhum item válido (nome obrigatório)." });
+    const criados = await CardapioPDV.insertMany(docs);
     res.json({ message: `${criados.length} itens importados.`, count: criados.length });
   } catch (err) {
     console.error("Erro ao importar:", err);
-    res.status(500).json({ error: "Erro ao importar. Verifique o formato." });
+    const msg = err.message || "Erro ao importar. Verifique o formato.";
+    res.status(500).json({ error: msg });
   }
 });
 

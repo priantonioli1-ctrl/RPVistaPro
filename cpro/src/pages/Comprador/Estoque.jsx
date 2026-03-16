@@ -16,6 +16,8 @@ export default function Estoque() {
     quantidade: "",
     fornecedor: "",
     nf: "",
+    validade: "",
+    bonificacao: false,
   });
   const [usuarioAtual, setUsuarioAtual] = useState(null);
   const [fornecedores, setFornecedores] = useState([]);
@@ -242,14 +244,18 @@ async function reconstruirEstoqueDoCatalogo() {
     e.preventDefault();
 
     if (!entrada.produto || !entrada.quantidade || !entrada.fornecedor || !entrada.nf) {
-      alert("Preencha todos os campos antes de registrar a entrada.");
+      alert("Preencha produto, quantidade, fornecedor e NF antes de registrar a entrada.");
       return;
     }
 
     try {
-      await registrarEntradaEstoque(usuarioAtual.compradorId, entrada);
+      await registrarEntradaEstoque(usuarioAtual.compradorId, {
+        ...entrada,
+        validade: entrada.validade || undefined,
+        bonificacao: entrada.bonificacao || false,
+      });
       alert("Entrada registrada com sucesso!");
-      setEntrada({ produto: "", quantidade: "", fornecedor: "", nf: "" });
+      setEntrada({ produto: "", quantidade: "", fornecedor: "", nf: "", validade: "", bonificacao: false });
 
       // Recarrega estoque atualizado
       const estoqueData = await listarEstoque(usuarioAtual.compradorId);
@@ -260,14 +266,22 @@ async function reconstruirEstoqueDoCatalogo() {
     }
   }
 
-  // ------------------ STATUS VISUAL (bolinhas) — só na página Estoque, não na Contagem de Estoque
+  // ------------------ STATUS VISUAL (bolinhas)
+  // Vermelho: abaixo do mínimo | Laranja: no mínimo | Amarelo: abaixo do máximo (acima do mínimo)
+  // Verde: no máximo | Lilás: acima do máximo
   function getStatus(produto) {
     const qtd = Number(produto.quantidade) || 0;
     const minimo = Number(produto.minimo) || 0;
+    const maximo = Number(produto.maximo) || 0;
     const emTransito = Number(produto.emTransito) || 0;
     const totalPrevisto = qtd + emTransito;
-    if (totalPrevisto <= minimo) return "#e74c3c";
-    if (totalPrevisto <= minimo * 1.5) return "#f1c40f";
+    if (totalPrevisto < minimo) return "#e74c3c"; // vermelho — abaixo do mínimo
+    if (totalPrevisto === minimo && minimo > 0) return "#f97316"; // laranja — atingiu o mínimo
+    if (maximo > 0) {
+      if (totalPrevisto < maximo) return "#f1c40f"; // amarelo — abaixo do máximo (necessidade de compra)
+      if (totalPrevisto > maximo) return "#9b59b6"; // lilás — acima do máximo
+      return "#27ae60"; // verde — no máximo desejado
+    }
     return "#27ae60";
   }
 
@@ -287,12 +301,14 @@ async function reconstruirEstoqueDoCatalogo() {
   .filter((item) => {
     const qtd = Number(item.quantidade) || 0;
     const minimo = Number(item.minimo) || 0;
+    const maximo = Number(item.maximo) || 0;
     const emTransito = Number(item.emTransito) || 0;
     const totalPrevisto = qtd + emTransito;
 
-    // entra na cotação se mesmo somando o que está a caminho
-    // ainda está no mínimo ou abaixo
-    return minimo > 0 && totalPrevisto <= minimo;
+    // entra na cotação se estiver abaixo da quantidade máxima desejada
+    // (inclui zerados e itens com estoque mas abaixo do máximo)
+    if (maximo > 0) return totalPrevisto < maximo;
+    return minimo > 0 && totalPrevisto <= minimo; // fallback quando máximo não definido
   })
   .map((item) => {
     const qtd = Number(item.quantidade) || 0;
@@ -332,12 +348,12 @@ sessionStorage.setItem("itensCotacao", JSON.stringify(itensParaCotacao));
   const listaHtml = itensParaCotacao
     .map(
       (i) =>
-        `<li><b>${i.nome}</b> — Atual: ${i.quantidade} ${i.unidade} (mínimo: ${i.minimo})</li>`
+        `<li><b>${i.nome}</b> — Atual: ${i.quantidade} ${i.unidade}${(i.maximo ?? 0) > 0 ? ` (máx. desejado: ${i.maximo})` : ` (mínimo: ${i.minimo})`}</li>`
     )
     .join("");
 
   Swal.fire({
-    title: "Produtos abaixo do estoque mínimo:",
+    title: "Produtos para abastecimento (abaixo da quantidade máxima desejada):",
     html: `<ul style='text-align:left'>${listaHtml}</ul>`,
     confirmButtonText: "Gerar Resumo de Cotação",
     confirmButtonColor: "#20b5a6",
@@ -366,6 +382,9 @@ if (!usuarioAtual) {
     marginBottom: 20,
   }}
 >
+          <button type="button" onClick={() => navigate("/estoque/metricas")} style={btnMetricas}>
+            Métricas do estoque
+          </button>
 </div>        {/* --- FORMULÁRIO DE ENTRADA --- */}
         <div style={entradaBox}>
           <h2 style={{ color: "#e6edf3", marginBottom: 16, fontSize: "1.25rem", fontWeight: 700 }}>Entrada de Produtos</h2>
@@ -423,6 +442,23 @@ if (!usuarioAtual) {
               onChange={(e) => setEntrada({ ...entrada, nf: e.target.value })}
               style={inputSmall}
             />
+            <input
+              type="date"
+              placeholder="Validade (opcional)"
+              title="Data de validade do lote (informe na entrada; em NF-e de medicamentos pode ser extraída automaticamente)"
+              value={entrada.validade}
+              onChange={(e) => setEntrada({ ...entrada, validade: e.target.value })}
+              style={inputSmall}
+            />
+            <label style={{ display: "flex", alignItems: "center", gap: 8, color: "#8b949e", fontSize: "0.875rem", cursor: "pointer" }}>
+              <input
+                type="checkbox"
+                checked={entrada.bonificacao}
+                onChange={(e) => setEntrada({ ...entrada, bonificacao: e.target.checked })}
+                title="Produto dado pelo fornecedor como bonificação (não pago)"
+              />
+              Bonificação
+            </label>
 
             <button type="submit" style={{ ...btnEntrada, marginLeft: "auto" }}>
               Confirmar Entrada
@@ -613,6 +649,16 @@ const btnEntrada = {
   padding: "10px 18px",
   cursor: "pointer",
   fontSize: "1rem",
+  fontWeight: 600,
+};
+const btnMetricas = {
+  background: "var(--gradient-btn-orange)",
+  color: "#fff",
+  border: "none",
+  borderRadius: 4,
+  padding: "10px 18px",
+  cursor: "pointer",
+  fontSize: "0.9375rem",
   fontWeight: 600,
 };
 const tabelaBox = {

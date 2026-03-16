@@ -1,11 +1,20 @@
-// CardapioPDV.jsx — Cardápio do PDV (pratos prontos, separado do catálogo de matéria-prima)
+// CardapioPDV.jsx — Catálogo PDV (produtos para venda no caixa, separado do catálogo de matéria-prima)
 import { useEffect, useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import * as XLSX from "xlsx";
 import Swal from "sweetalert2";
+import { getApiUrl } from "../../utils/apiUrl";
 
-const API_URL = process.env.REACT_APP_API_URL || "http://localhost:4001";
+const API_URL = getApiUrl();
 const BORDER = "1px solid rgba(255,255,255,0.08)";
+
+// Normaliza cabeçalhos para reconhecer "Código de barras", "cód. de. barras", etc.
+const normalizeHeader = (s = "") =>
+  String(s || "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim();
 
 export default function CardapioPDV() {
   const navigate = useNavigate();
@@ -17,7 +26,7 @@ export default function CardapioPDV() {
   const [categoriaFiltro, setCategoriaFiltro] = useState("");
   const [mostrarForm, setMostrarForm] = useState(false);
   const [editId, setEditId] = useState(null);
-  const [form, setForm] = useState({ codigo: "", codigoBarras: "", nome: "", descricao: "", categoria: "Geral", preco: "", unidade: "un" });
+  const [form, setForm] = useState({ codigo: "", codigoBarras: "", nome: "", descricao: "", categoria: "Geral", preco: "", unidade: "un", categoriaTributaria: "ALÍQUOTA_PADRÃO" });
   const [mostrarColar, setMostrarColar] = useState(false);
   const [textoColar, setTextoColar] = useState("");
 
@@ -89,6 +98,7 @@ export default function CardapioPDV() {
             categoria: form.categoria.trim() || "Geral",
             preco,
             unidade: form.unidade.trim() || "un",
+            categoriaTributaria: form.categoriaTributaria || "ALÍQUOTA_PADRÃO",
           }),
         });
         if (!res.ok) throw new Error("Erro ao atualizar.");
@@ -105,6 +115,7 @@ export default function CardapioPDV() {
             categoria: form.categoria.trim() || "Geral",
             preco,
             unidade: form.unidade.trim() || "un",
+            categoriaTributaria: form.categoriaTributaria || "ALÍQUOTA_PADRÃO",
           }),
         });
         if (!res.ok) throw new Error("Erro ao criar.");
@@ -112,7 +123,7 @@ export default function CardapioPDV() {
       Swal.fire("Sucesso", editId ? "Item atualizado." : "Item adicionado.", "success");
       setMostrarForm(false);
       setEditId(null);
-      setForm({ codigo: "", codigoBarras: "", nome: "", descricao: "", categoria: "Geral", preco: "", unidade: "un" });
+      setForm({ codigo: "", codigoBarras: "", nome: "", descricao: "", categoria: "Geral", preco: "", unidade: "un", categoriaTributaria: "ALÍQUOTA_PADRÃO" });
       const lista = await fetch(`${API_URL}/api/cardapio-pdv?empresa=${encodeURIComponent(empresaId)}`).then((r) => r.json());
       setItens(Array.isArray(lista) ? lista : []);
     } catch (err) {
@@ -155,10 +166,14 @@ export default function CardapioPDV() {
         const text = await file.text();
         const lines = text.split(/\r?\n/).filter((l) => l.trim());
         const sep = lines[0]?.includes(";") ? ";" : ",";
-        const headers = (lines[0] || "").split(sep).map((h) => String(h || "").toLowerCase().trim());
-        const idx = (names) => {
+        const headers = (lines[0] || "").split(sep).map((h) => normalizeHeader(h));
+        const idx = (names, excludeBarras = false) => {
           for (const n of names) {
-            const i = headers.findIndex((h) => h.includes(n));
+            const i = headers.findIndex((h) => {
+              if (!h.includes(normalizeHeader(n))) return false;
+              if (excludeBarras && h.includes("barras")) return false;
+              return true;
+            });
             if (i >= 0) return i;
           }
           return -1;
@@ -166,20 +181,20 @@ export default function CardapioPDV() {
         const idxNome = idx(["nome", "produto"]) >= 0 ? idx(["nome", "produto"]) : 0;
         const idxPreco = idx(["preco", "valor", "preço"]) >= 0 ? idx(["preco", "valor", "preço"]) : 1;
         const idxCat = idx(["categoria", "secao", "seção"]);
-        const idxCodigo = idx(["codigo", "código"]);
-        const idxCodBarras = idx(["codigobarras", "ean", "codigo de barras"]);
+        const idxCodigo = idx(["codigo", "código", "sku", "ref"], true);
+        const idxCodBarras = idx(["codigobarras", "ean", "codigo de barras", "cod de barras", "cod. de. barras", "gtin"]);
         const idxUnidade = idx(["unidade", "unid"]);
         for (let i = 1; i < lines.length; i++) {
           const cols = lines[i].split(sep);
           const nome = String(cols[idxNome] || "").trim();
           if (!nome) continue;
           rows.push({
-            nome,
+            nome: String(nome || "").trim(),
             preco: cols[idxPreco] ?? 0,
-            categoria: idxCat >= 0 ? (cols[idxCat] || "Geral") : "Geral",
-            codigo: idxCodigo >= 0 ? cols[idxCodigo] : "",
-            codigoBarras: idxCodBarras >= 0 ? cols[idxCodBarras] : "",
-            unidade: idxUnidade >= 0 ? cols[idxUnidade] || "un" : "un",
+            categoria: idxCat >= 0 ? String(cols[idxCat] ?? "Geral").trim() : "Geral",
+            codigo: idxCodigo >= 0 ? String(cols[idxCodigo] ?? "").trim() : "",
+            codigoBarras: idxCodBarras >= 0 ? String(cols[idxCodBarras] ?? "").trim() : "",
+            unidade: idxUnidade >= 0 ? String(cols[idxUnidade] ?? "un").trim() || "un" : "un",
           });
         }
       } else {
@@ -187,10 +202,14 @@ export default function CardapioPDV() {
         const wb = XLSX.read(buf, { type: "array" });
         const sh = wb.Sheets[wb.SheetNames[0]];
         const mat = XLSX.utils.sheet_to_json(sh, { header: 1, defval: "" });
-        const headers = (mat[0] || []).map((h) => String(h || "").toLowerCase().trim());
-        const idx = (names) => {
+        const headers = (mat[0] || []).map((h) => normalizeHeader(h));
+        const idx = (names, excludeBarras = false) => {
           for (const n of names) {
-            const i = headers.findIndex((h) => h.includes(n));
+            const i = headers.findIndex((h) => {
+              if (!h.includes(normalizeHeader(n))) return false;
+              if (excludeBarras && h.includes("barras")) return false;
+              return true;
+            });
             if (i >= 0) return i;
           }
           return -1;
@@ -198,20 +217,20 @@ export default function CardapioPDV() {
         const idxNome = idx(["nome", "produto"]) >= 0 ? idx(["nome", "produto"]) : 0;
         const idxPreco = idx(["preco", "valor", "preço"]) >= 0 ? idx(["preco", "valor", "preço"]) : 1;
         const idxCat = idx(["categoria", "secao", "seção"]);
-        const idxCodigo = idx(["codigo", "código"]);
-        const idxCodBarras = idx(["codigobarras", "ean"]);
+        const idxCodigo = idx(["codigo", "código", "sku", "ref"], true);
+        const idxCodBarras = idx(["codigobarras", "ean", "codigo de barras", "cod de barras", "cod. de. barras", "gtin"]);
         const idxUnidade = idx(["unidade", "unid"]);
         for (let i = 1; i < mat.length; i++) {
           const row = mat[i] || [];
           const nome = String(row[idxNome] ?? "").trim();
           if (!nome) continue;
           rows.push({
-            nome,
+            nome: String(nome || "").trim(),
             preco: row[idxPreco] ?? 0,
-            categoria: idxCat >= 0 ? (row[idxCat] ?? "Geral") : "Geral",
-            codigo: idxCodigo >= 0 ? row[idxCodigo] : "",
-            codigoBarras: idxCodBarras >= 0 ? row[idxCodBarras] : "",
-            unidade: idxUnidade >= 0 ? row[idxUnidade] || "un" : "un",
+            categoria: idxCat >= 0 ? String(row[idxCat] ?? "Geral").trim() || "Geral" : "Geral",
+            codigo: idxCodigo >= 0 ? String(row[idxCodigo] ?? "").trim() : "",
+            codigoBarras: idxCodBarras >= 0 ? String(row[idxCodBarras] ?? "").trim() : "",
+            unidade: idxUnidade >= 0 ? String(row[idxUnidade] ?? "un").trim() || "un" : "un",
           });
         }
       }
@@ -236,6 +255,50 @@ export default function CardapioPDV() {
     e.target.value = "";
   }
 
+  async function excluirTodos() {
+    if (!empresaId) return;
+    const conf = await Swal.fire({
+      title: "Excluir todos os itens?",
+      text: "Todos os produtos do Catálogo PDV serão removidos. Esta ação não pode ser desfeita.",
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonColor: "#f85149",
+      confirmButtonText: "Sim, excluir tudo",
+    });
+    if (!conf.isConfirmed) return;
+    try {
+      const res = await fetch(`${API_URL}/api/cardapio-pdv/excluir-todos`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ empresa: empresaId }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Erro ao excluir.");
+      Swal.fire("Concluído", data.message || "Todos os itens foram excluídos.", "success");
+      setItens([]);
+    } catch (err) {
+      Swal.fire("Erro", err.message, "error");
+    }
+  }
+
+  async function sincronizarCodigoBarras() {
+    if (!empresaId) return;
+    try {
+      const res = await fetch(`${API_URL}/api/cardapio-pdv/sincronizar-codigo-barras`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ empresa: empresaId }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Erro ao sincronizar.");
+      Swal.fire("Sucesso", data.message || "Códigos de barras sincronizados.", "success");
+      const lista = await fetch(`${API_URL}/api/cardapio-pdv?empresa=${encodeURIComponent(empresaId)}`).then((r) => r.json());
+      setItens(Array.isArray(lista) ? lista : []);
+    } catch (err) {
+      Swal.fire("Erro", err.message, "error");
+    }
+  }
+
   async function colarEImportar() {
     const texto = textoColar.trim();
     if (!texto) {
@@ -244,10 +307,14 @@ export default function CardapioPDV() {
     }
     const linhas = texto.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
     const sep = linhas[0]?.includes(";") ? ";" : linhas[0]?.includes("\t") ? "\t" : ",";
-    const headers = (linhas[0] || "").split(sep).map((h) => String(h || "").toLowerCase().trim());
-    const idx = (names) => {
+    const headers = (linhas[0] || "").split(sep).map((h) => normalizeHeader(h));
+    const idx = (names, excludeBarras = false) => {
       for (const n of names) {
-        const i = headers.findIndex((h) => h.includes(n));
+        const i = headers.findIndex((h) => {
+          if (!h.includes(normalizeHeader(n))) return false;
+          if (excludeBarras && h.includes("barras")) return false;
+          return true;
+        });
         if (i >= 0) return i;
       }
       return -1;
@@ -255,8 +322,8 @@ export default function CardapioPDV() {
     const idxNome = idx(["nome", "produto"]) >= 0 ? idx(["nome", "produto"]) : 0;
     const idxPreco = idx(["preco", "valor", "preço"]) >= 0 ? idx(["preco", "valor", "preço"]) : 1;
     const idxCat = idx(["categoria", "secao", "seção"]);
-    const idxCodigo = idx(["codigo", "código"]);
-    const idxCodBarras = idx(["codigobarras", "ean"]);
+    const idxCodigo = idx(["codigo", "código", "sku", "ref"], true);
+    const idxCodBarras = idx(["codigobarras", "ean", "codigo de barras", "cod de barras", "cod. de. barras", "gtin"]);
     const idxUnidade = idx(["unidade", "unid"]);
     const rows = [];
     const start = headers.some((h) => h.includes("nome") || h.includes("produto")) ? 1 : 0;
@@ -265,12 +332,12 @@ export default function CardapioPDV() {
       const nome = String(cols[idxNome] || cols[0] || "").trim();
       if (!nome || /c[oó]digo|produto|nome/i.test(nome)) continue;
       rows.push({
-        nome,
+        nome: String(nome || "").trim(),
         preco: cols[idxPreco] ?? cols[1] ?? 0,
-        categoria: idxCat >= 0 ? (cols[idxCat] || "Geral") : "Geral",
-        codigo: idxCodigo >= 0 ? cols[idxCodigo] : "",
-        codigoBarras: idxCodBarras >= 0 ? cols[idxCodBarras] : "",
-        unidade: idxUnidade >= 0 ? cols[idxUnidade] || "un" : "un",
+        categoria: idxCat >= 0 ? String(cols[idxCat] ?? "Geral").trim() || "Geral" : "Geral",
+        codigo: idxCodigo >= 0 ? String(cols[idxCodigo] ?? "").trim() : "",
+        codigoBarras: idxCodBarras >= 0 ? String(cols[idxCodBarras] ?? "").trim() : "",
+        unidade: idxUnidade >= 0 ? String(cols[idxUnidade] ?? "un").trim() || "un" : "un",
       });
     }
     if (rows.length === 0) {
@@ -302,9 +369,9 @@ export default function CardapioPDV() {
       <main style={{ margin: "24px 0", padding: "0 20px 40px" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 16, marginBottom: 24 }}>
           <div>
-            <h2 style={{ margin: 0, color: "#e6edf3", fontSize: "1.5rem" }}>Cardápio PDV</h2>
+            <h2 style={{ margin: 0, color: "#e6edf3", fontSize: "1.5rem" }}>Catálogo PDV</h2>
             <p style={{ margin: "4px 0 0", color: "#8b949e", fontSize: "0.9375rem" }}>
-              Pratos prontos e produtos finais para venda. Separado do catálogo de matéria-prima.
+              Produtos para venda no caixa. Separado do catálogo de matéria-prima.
             </p>
           </div>
           <div style={{ display: "flex", gap: 8 }}>
@@ -314,6 +381,12 @@ export default function CardapioPDV() {
             </button>
             <button type="button" onClick={() => setMostrarColar(!mostrarColar)} style={btnSecundario}>
               Colar texto (PDF, etc.)
+            </button>
+            <button type="button" onClick={sincronizarCodigoBarras} style={btnSecundario} title="Copia códigos de barras do Catálogo para itens com mesmo nome e unidade">
+              Sincronizar códigos do catálogo
+            </button>
+            <button type="button" onClick={excluirTodos} style={btnExcluirTudo} title="Remove todos os itens do Catálogo PDV">
+              Excluir tudo
             </button>
             <button type="button" onClick={() => navigate("/frente-de-loja")} style={btnPrincipal}>
               Abrir PDV
@@ -342,7 +415,7 @@ export default function CardapioPDV() {
               <option key={c} value={c}>{c}</option>
             ))}
           </select>
-          <button type="button" onClick={() => { setEditId(null); setForm({ codigo: "", codigoBarras: "", nome: "", descricao: "", categoria: "Geral", preco: "", unidade: "un" }); setMostrarForm(true); }} style={btnPrincipal}>
+          <button type="button" onClick={() => { setEditId(null); setForm({ codigo: "", codigoBarras: "", nome: "", descricao: "", categoria: "Geral", preco: "", unidade: "un", categoriaTributaria: "ALÍQUOTA_PADRÃO" }); setMostrarForm(true); }} style={btnPrincipal}>
             + Novo item
           </button>
         </div>
@@ -357,6 +430,7 @@ export default function CardapioPDV() {
               <div><label style={label}>Categoria</label><input style={input} value={form.categoria} onChange={(e) => setForm((p) => ({ ...p, categoria: e.target.value }))} placeholder="Ex.: Bebidas, Pratos" className="campo-fundo-claro" /></div>
               <div><label style={label}>Preço (R$)</label><input style={input} type="number" step="0.01" value={form.preco} onChange={(e) => setForm((p) => ({ ...p, preco: e.target.value }))} placeholder="0,00" className="campo-fundo-claro" /></div>
               <div><label style={label}>Unidade</label><input style={input} value={form.unidade} onChange={(e) => setForm((p) => ({ ...p, unidade: e.target.value }))} placeholder="un, kg, ml" className="campo-fundo-claro" /></div>
+              <div style={{ gridColumn: "1 / -1" }}><label style={label}>Categoria tributária (Reforma EC 132/2023)</label><select style={input} value={form.categoriaTributaria || "ALÍQUOTA_PADRÃO"} onChange={(e) => setForm((p) => ({ ...p, categoriaTributaria: e.target.value }))} className="campo-fundo-claro"><option value="ALÍQUOTA_PADRÃO">Padrão (perfumaria, higiene)</option><option value="ALÍQUOTA_REDUZIDA">Reduzida 60% (medicamentos essenciais)</option><option value="ALÍQUOTA_ZERO">Zero (Farmácia Popular, diabetes, hipertensão)</option></select></div>
               <div style={{ gridColumn: "1 / -1" }}><label style={label}>Descrição</label><input style={input} value={form.descricao} onChange={(e) => setForm((p) => ({ ...p, descricao: e.target.value }))} placeholder="Opcional" className="campo-fundo-claro" /></div>
             </div>
             <div style={{ display: "flex", gap: 12 }}>
@@ -416,7 +490,7 @@ export default function CardapioPDV() {
                     <td style={td}>R$ {(i.preco || 0).toFixed(2).replace(".", ",")}</td>
                     <td style={td}>{i.unidade || "un"}</td>
                     <td style={td}>
-                      <button type="button" onClick={() => { setEditId(i._id); setForm({ codigo: i.codigo || "", codigoBarras: i.codigoBarras || "", nome: i.nome || "", descricao: i.descricao || "", categoria: i.categoria || "Geral", preco: i.preco ?? "", unidade: i.unidade || "un" }); setMostrarForm(true); }} style={btnSmall}>Editar</button>
+                      <button type="button" onClick={() => { setEditId(i._id); setForm({ codigo: i.codigo || "", codigoBarras: i.codigoBarras || "", nome: i.nome || "", descricao: i.descricao || "", categoria: i.categoria || "Geral", preco: i.preco ?? "", unidade: i.unidade || "un", categoriaTributaria: i.categoriaTributaria || "ALÍQUOTA_PADRÃO" }); setMostrarForm(true); }} style={btnSmall}>Editar</button>
                       <button type="button" onClick={() => excluir(i)} style={btnExcluir}>Excluir</button>
                     </td>
                   </tr>
@@ -436,6 +510,7 @@ const btnPrincipal = { padding: "10px 20px", borderRadius: 6, border: "none", ba
 const btnSecundario = { padding: "10px 20px", borderRadius: 6, border: BORDER, background: "transparent", color: "#e6edf3", fontWeight: 600, cursor: "pointer" };
 const btnSmall = { padding: "6px 12px", borderRadius: 4, border: "none", background: "rgba(255,255,255,0.15)", color: "#e6edf3", fontSize: "0.8125rem", cursor: "pointer", marginRight: 8 };
 const btnExcluir = { padding: "6px 12px", borderRadius: 4, border: "1px solid rgba(248,81,73,0.5)", background: "transparent", color: "#f85149", fontSize: "0.8125rem", cursor: "pointer" };
+const btnExcluirTudo = { padding: "10px 20px", borderRadius: 6, border: "1px solid rgba(248,81,73,0.5)", background: "transparent", color: "#f85149", fontWeight: 600, cursor: "pointer" };
 const th = { padding: "10px 12px", textAlign: "left", borderBottom: BORDER, color: "#8b949e", fontWeight: 600, fontSize: "0.8125rem" };
 const td = { padding: 12, borderBottom: BORDER };
 const tr = {};

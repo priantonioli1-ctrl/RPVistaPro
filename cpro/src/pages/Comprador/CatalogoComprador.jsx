@@ -203,15 +203,23 @@ export default function CatalogoComprador() {
       .replace(/[\u0300-\u036f]/g, "")
       .trim();
 
+// Vermelho: abaixo do mínimo | Laranja: no mínimo | Amarelo: abaixo do máximo
+// Verde: no máximo | Lilás: acima do máximo
 function getStatus(produto) {
   const item = estoqueMap[normNome(produto.nome)];
   if (!item) return "#999";
   const atual = item.quantidade || 0;
   const minimo = item.minimo || 0;
+  const maximo = item.maximo || 0;
   const emTransito = item.emTransito || 0;
   const total = atual + emTransito;
-  if (total <= minimo) return "#e74c3c";
-  if (total <= minimo * 1.5) return "#f1c40f";
+  if (total < minimo) return "#e74c3c"; // vermelho — abaixo do mínimo
+  if (total === minimo && minimo > 0) return "#f97316"; // laranja — no mínimo
+  if (maximo > 0) {
+    if (total < maximo) return "#f1c40f"; // amarelo — abaixo do máximo
+    if (total > maximo) return "#9b59b6"; // lilás — acima do máximo
+    return "#27ae60"; // verde — no máximo desejado
+  }
   return "#27ae60";
 }
 
@@ -539,6 +547,12 @@ function getStatus(produto) {
         >
           Gerar Resumo
         </button>
+        <button
+          onClick={() => navigate("/cotacao-abastecimento")}
+          style={styles.btnAbastecimento}
+        >
+          Cotação para abastecimento
+        </button>
       </div>
 
       <p style={styles.legenda}>
@@ -713,6 +727,16 @@ const styles = {
   btnPrimario: {
     background: "var(--gradient-btn-primary)",
     color: "#0B1C26",
+    border: "none",
+    borderRadius: 4,
+    padding: "10px 18px",
+    cursor: "pointer",
+    fontWeight: 600,
+    fontSize: "1rem",
+  },
+  btnAbastecimento: {
+    background: "var(--gradient-btn-orange)",
+    color: "#fff",
     border: "none",
     borderRadius: 4,
     padding: "10px 18px",

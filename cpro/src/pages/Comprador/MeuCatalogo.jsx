@@ -39,6 +39,7 @@ const rowShape = (r) => ({
   gramatura: r.gramatura || "",
   similar: !!r.similar,
   codigo: r.codigo || "",
+  codigoBarras: r.codigoBarras || "",
 });
 
 // tenta mapear um título para um campo
@@ -64,7 +65,11 @@ const mapHeaderToField = (h) => {
   if (/(aceita.*similar|similar|permite.*similar|substituicao|substituição|similares)/.test(t))
     return "similar";
 
-  // Código
+  // Código de barras / EAN (antes de "codigo" para "código de barras" não virar "codigo")
+  // Aceita: Código de barras, Cod. Barras, EAN, GTIN, EAN13, código barras, etc.
+  if (/(codigo.*barras|cod.*barras|barras|codigobarras|codigodebarras|ean|gtin|gs1|cbarras|cod_barras|upc)/.test(t)) return "codigoBarras";
+
+  // Código (genérico)
   if (/(codigo|c[oó]digo|cod|c[oó]d|sku|ref|referencia|referência|c[oó]d produto|cod produto)/.test(t))
     return "codigo";
 
@@ -73,7 +78,7 @@ const mapHeaderToField = (h) => {
 
 // encontra a linha de cabeçalho: varre primeiras N linhas e escolhe a que tiver "produto" + (secao/marca/gramatura/codigo/similar)
 function detectarLinhaCabecalho(matriz, maxScan = 12) {
-  const metas = ["produto", "secao", "marca", "gramatura", "similar", "codigo"];
+  const metas = ["produto", "secao", "marca", "gramatura", "similar", "codigo", "codigoBarras"];
 
   for (let i = 0; i < Math.min(maxScan, matriz.length); i++) {
     const row = (matriz[i] || []).map((h) => normalize(h));
@@ -119,6 +124,7 @@ export default function MeuCatalogo() {
     gramatura: "",
     similar: true,
     codigo: "",
+    codigoBarras: "",
   });
 
  useEffect(() => {
@@ -157,6 +163,7 @@ export default function MeuCatalogo() {
         gramatura: item.unidade || "",
         similar: item.similar ?? true,
         codigo: item.codigo || "",
+        codigoBarras: item.codigoBarras || "",
       }));
 
       setLinhas(adaptado);
@@ -185,6 +192,7 @@ export default function MeuCatalogo() {
         unidade: (r.gramatura || "").toString().trim(),
         similar: r.similar !== false,
         codigo: (r.codigo || "").toString().trim(),
+        codigoBarras: (r.codigoBarras || "").toString().trim(),
         preco: 0,
       }));
     const url = `${API_BASE_CAT || (typeof window !== "undefined" ? window.location.origin : "")}/api/catalogos/${empresaId}`;
@@ -264,75 +272,80 @@ export default function MeuCatalogo() {
     return () => { flushPersist(); };
   }, []);
 
-  // 🔹 Importar Excel (fixo para formato "Clube Piraquê")
-async function importarArquivo(e) {
-  const file = e.target.files?.[0];
-  if (!file) return;
+  // 🔹 Importar Excel — mapeia colunas pelo cabeçalho (não por posição fixa)
+  async function importarArquivo(e) {
+    const file = e.target.files?.[0];
+    if (!file) return;
 
-  try {
-    const buf = await file.arrayBuffer();
-    const wb = XLSX.read(buf, { type: "array" });
-    const sheet = wb.Sheets[wb.SheetNames[0]];
-    const matr = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: "" });
+    try {
+      const buf = await file.arrayBuffer();
+      const wb = XLSX.read(buf, { type: "array" });
+      const sheet = wb.Sheets[wb.SheetNames[0]];
+      const matr = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: "" });
 
-    // Procura o índice da linha que contém "Seção"
-    const headerIndex = matr.findIndex(
-      (row) =>
-        row.some((cell) =>
-          normalize(cell).startsWith("secao") ||
-          normalize(cell).startsWith("seção")
-        )
-    );
+      const headerIndex = detectarLinhaCabecalho(matr);
+      if (headerIndex === -1) {
+        Swal.fire("Erro", "Não encontrei linha de cabeçalho com 'Produto' e outro campo reconhecido.", "error");
+        return;
+      }
 
-    if (headerIndex === -1) {
-      Swal.fire("Erro", "Não encontrei cabeçalho com 'Seção'.", "error");
-      return;
+      const headerRow = (matr[headerIndex] || []).map((h) => String(h != null ? h : "").trim());
+      const colMap = {};
+      headerRow.forEach((h, idx) => {
+        const campo = mapHeaderToField(h);
+        if (campo) colMap[campo] = idx;
+        // Fallback: se contém "barras", "ean" ou "gtin" em qualquer lugar
+        if (!campo && h && /barras|ean|gtin/i.test(h)) colMap.codigoBarras = idx;
+      });
+
+      if (colMap.produto === undefined) {
+        Swal.fire("Erro", "Não encontrei coluna 'Produto' ou similar no cabeçalho.", "error");
+        return;
+      }
+
+      const dataRows = matr.slice(headerIndex + 1).filter((r) => r.some(Boolean));
+      const rows = dataRows.map((r) => {
+        const cell = (i) => (r[i] != null ? String(r[i]).trim() : "");
+        return {
+          secao: colMap.secao !== undefined ? cell(colMap.secao) : "",
+          produto: cell(colMap.produto),
+          marca: colMap.marca !== undefined ? cell(colMap.marca) : "",
+          gramatura: colMap.gramatura !== undefined ? cell(colMap.gramatura) : "",
+          similar: colMap.similar !== undefined ? parseBooleanCell(cell(colMap.similar)) : true,
+          codigo: colMap.codigo !== undefined ? cell(colMap.codigo) : "",
+          codigoBarras: colMap.codigoBarras !== undefined ? cell(colMap.codigoBarras) : "",
+        };
+      });
+
+      const validos = rows.filter((r) => r.produto);
+      if (!validos.length) {
+        Swal.fire("Nada importado", "Nenhuma linha de produto encontrada.", "warning");
+        return;
+      }
+
+      const combinado = dedupMerge(linhas, validos);
+      salvarLocal(combinado, true);
+
+      Swal.fire({
+        title: "Importação concluída!",
+        html: `Foram importados ${validos.length} itens.<br/><br/>
+          ${colMap.codigoBarras !== undefined
+            ? "✓ Códigos de barras detectados."
+            : "⚠ Coluna de código de barras não reconhecida. Renomeie o cabeçalho para &quot;EAN&quot;, &quot;Código de barras&quot; ou &quot;GTIN&quot; e importe novamente."}`,
+        icon: colMap.codigoBarras !== undefined ? "success" : "warning",
+        timer: 4000,
+      });
+    } catch (err) {
+      console.error(err);
+      Swal.fire(
+        "Erro na importação",
+        "Ocorreu um erro ao ler a planilha. Verifique o formato e tente novamente.",
+        "error"
+      );
+    } finally {
+      e.target.value = "";
     }
-
-    // Extrai apenas as linhas de dados abaixo do cabeçalho
-    const dataRows = matr.slice(headerIndex + 1).filter((r) => r.some(Boolean));
-
-    if (!dataRows.length) {
-      Swal.fire("Nada importado", "Nenhuma linha válida encontrada.", "warning");
-      return;
-    }
-
-    // Índices fixos conforme a planilha
-    const rows = dataRows.map((r) => ({
-      secao: r[0]?.toString().trim() || "",
-      produto: r[1]?.toString().trim() || "",
-      marca: r[2]?.toString().trim() || "",
-      gramatura: r[3]?.toString().trim() || "",
-      similar: normalize(r[4]) === "sim",
-      codigo: r[5]?.toString().trim() || "",
-    }));
-
-    const validos = rows.filter((r) => r.produto);
-    if (!validos.length) {
-      Swal.fire("Nada importado", "Nenhuma linha de produto encontrada.", "warning");
-      return;
-    }
-
-    const combinado = dedupMerge(linhas, validos);
-    salvarLocal(combinado, true);
-
-    Swal.fire({
-      title: "Importação concluída!",
-      text: `Foram importados ${validos.length} itens com sucesso.`,
-      icon: "success",
-      timer: 2500,
-    });
-  } catch (err) {
-    console.error(err);
-    Swal.fire(
-      "Erro na importação",
-      "Ocorreu um erro ao ler a planilha. Verifique o formato e tente novamente.",
-      "error"
-    );
-  } finally {
-    e.target.value = "";
   }
-}
 
   // Deduplicação por (produto + gramatura + codigo)
   function dedupMerge(base, novos) {
@@ -360,6 +373,7 @@ async function importarArquivo(e) {
       gramatura: "",
       similar: true,
       codigo: "",
+      codigoBarras: "",
     });
   }
 
@@ -418,7 +432,7 @@ async function excluirTudo() {
   // Exportar XLSX
   function exportarXlsx() {
     const aoa = [
-      ["Seção", "Produto", "Marca", "Gramatura", "Aceita Marca Similar", "Código produto"],
+      ["Seção", "Produto", "Marca", "Gramatura", "Aceita Marca Similar", "Código produto", "Código de barras"],
       ...linhas.map((r) => [
         r.secao,
         r.produto,
@@ -426,6 +440,7 @@ async function excluirTudo() {
         r.gramatura,
         r.similar ? "Sim" : "Não",
         r.codigo,
+        r.codigoBarras || "",
       ]),
     ];
     const ws = XLSX.utils.aoa_to_sheet(aoa);
@@ -521,7 +536,11 @@ async function excluirTudo() {
             {/* Aviso de estrutura esperada */}
             <div style={{ marginTop: 12, fontSize: "0.8125rem", color: "#8b949e" }}>
               Estrutura esperada:{" "}
-              <b style={{ color: "#e6edf3" }}>Seção | Produto | Marca | Gramatura | Aceita marca similar | Código produto</b>
+              <b style={{ color: "#e6edf3" }}>Seção | Produto | Marca | Gramatura | Similar | Código | Código de barras</b>
+              {" "}
+              <span style={{ color: "#8b949e", fontSize: "0.75rem" }}>
+                Para código de barras, use como cabeçalho: <strong>EAN</strong>, <strong>Código de barras</strong>, <strong>GTIN</strong> ou <strong>Barras</strong>
+              </span>
             </div>
 
             {/* Filtros */}
@@ -644,7 +663,7 @@ async function excluirTudo() {
     <div
       style={{
         display: "grid",
-        gridTemplateColumns: "0.9fr 1.4fr 1.7fr",
+        gridTemplateColumns: "0.9fr 1.4fr 1.4fr 1.7fr",
         gap: 8,
         marginTop: 12,
         fontSize: "0.8125rem",
@@ -657,6 +676,7 @@ async function excluirTudo() {
     >
       <div>Aceita Similar</div>
       <div>Código</div>
+      <div>Cód. Barras</div>
       <div></div>
     </div>
 
@@ -687,6 +707,15 @@ async function excluirTudo() {
       onChange={(e) => setNovo({ ...novo, codigo: e.target.value })}
       style={input}
       className="campo-fundo-claro"
+    />
+
+    <input
+      placeholder="EAN/GTIN (leitor)"
+      value={novo.codigoBarras}
+      onChange={(e) => setNovo({ ...novo, codigoBarras: e.target.value })}
+      style={input}
+      className="campo-fundo-claro"
+      title="Código de barras para o Frente de Loja"
     />
 
     <div style={{ display: "flex", justifyContent: "flex-end" }}>
@@ -725,6 +754,7 @@ async function excluirTudo() {
               <div style={{ ...tableHeaderCell, flex: "1.2" }}>Marca</div>
               <div style={{ ...tableHeaderCell, flex: "0.8" }}>Similar</div>
               <div style={{ ...tableHeaderCell, flex: "1" }}>Código</div>
+              <div style={{ ...tableHeaderCell, flex: "1.2" }}>Cód. Barras</div>
               <div style={{ ...tableHeaderCell, flex: "0.5", textAlign: "center" }}>Ações</div>
             </div>
 
@@ -802,6 +832,18 @@ async function excluirTudo() {
                       style={{ ...cellInput, width: "100%" }}
                       className="campo-fundo-claro"
                       placeholder="Código"
+                    />
+                  </div>
+
+                  {/* Código de Barras */}
+                  <div style={{ ...tableCell, flex: "1.2" }}>
+                    <input
+                      value={r.codigoBarras || ""}
+                      onChange={(e) => edit(idx, "codigoBarras", e.target.value)}
+                      onBlur={flushPersist}
+                      style={{ ...cellInput, width: "100%" }}
+                      className="campo-fundo-claro"
+                      placeholder="EAN/GTIN"
                     />
                   </div>
 

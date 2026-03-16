@@ -3,7 +3,12 @@ import express from "express";
 import mongoose from "mongoose";
 import cors from "cors";
 import dotenv from "dotenv";
+import path from "path";
+import fs from "fs";
+import { fileURLToPath } from "url";
 import uploadRoutes from "./routes/upload.js";
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 // 🧩 Carrega variáveis de ambiente (.env)
 dotenv.config();
 
@@ -32,6 +37,13 @@ import produtosOrcamentoRoutes from "./routes/produtos-orcamento.js";
 import modelosFichaOrcamentoRoutes from "./routes/modelos-ficha-orcamento.js";
 import tipoPropostaRoutes from "./routes/tipo-proposta.js";
 import propostasRoutes from "./routes/propostas.js";
+import estadosRoutes from "./routes/estados.js";
+import vendasRoutes from "./routes/vendas.js";
+import certificadoEmpresaRoutes from "./routes/certificado-empresa.js";
+import impressoraFiscalRoutes from "./routes/impressora-fiscal.js";
+import nfceRoutes from "./routes/nfce.js";
+import questionarioRoutes from "./routes/questionario.js";
+import dreRoutes from "./routes/dre.js";
 const app =
  express();
 
@@ -53,8 +65,11 @@ if (!MONGODB_URI) {
   process.exit(1);
 }
 
-// 🧩 Rota de status para teste rápido
-app.get("/", (req, res) => res.json({ status: "API funcionando 🚀" }));
+// 🧩 Rota de status da API
+app.get("/api/status", (req, res) => res.json({ status: "API funcionando 🚀" }));
+
+// Rota explícita para enviar respostas (evita 404 no path raiz)
+app.use("/api/questionario/enviar-respostas", questionarioRoutes);
 
 // 🛒 Rotas principais da API
 app.use("/api/usuarios", usuariosRoutes);
@@ -82,6 +97,27 @@ app.use("/api/produtos-orcamento", produtosOrcamentoRoutes);
 app.use("/api/modelos-ficha-orcamento", modelosFichaOrcamentoRoutes);
 app.use("/api/tipo-proposta", tipoPropostaRoutes);
 app.use("/api/propostas", propostasRoutes);
+app.use("/api/estados", estadosRoutes);
+app.use("/api/vendas", vendasRoutes);
+app.use("/api/certificado-empresa", certificadoEmpresaRoutes);
+app.use("/api/impressora-fiscal", impressoraFiscalRoutes);
+app.use("/api/nfce", nfceRoutes);
+app.use("/api/questionario", questionarioRoutes);
+app.use("/api/dre", dreRoutes);
+
+// 📦 Frontend React (quando build existe - ex.: Render)
+const buildPath = path.join(__dirname, "../cpro/build");
+if (fs.existsSync(buildPath)) {
+  app.use(express.static(buildPath));
+  app.get("*", (req, res, next) => {
+    if (req.path.startsWith("/api")) return next();
+    res.set("Cache-Control", "no-cache, no-store, must-revalidate");
+    res.sendFile(path.join(buildPath, "index.html"), (err) => err && next(err));
+  });
+} else {
+  app.get("/", (req, res) => res.json({ status: "API funcionando 🚀" }));
+}
+
 // ⚠️ Middleware para rotas inexistentes
 app.use((req, res) => {
   res.status(404).json({ error: "Rota não encontrada" });

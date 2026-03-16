@@ -1,5 +1,9 @@
 # O que fazer quando o deploy no Render falha
 
+> **Frontend no Render:** Para evitar cache, o frontend agora sobe junto com o backend. Veja **[DEPLOY-RENDER-FRONTEND.md](./DEPLOY-RENDER-FRONTEND.md)** para configurar.
+
+---
+
 ## 1. Enviar as correções para o GitHub
 
 Abra o **Terminal** (no Cursor: Terminal → New Terminal) e rode **um comando por vez**:

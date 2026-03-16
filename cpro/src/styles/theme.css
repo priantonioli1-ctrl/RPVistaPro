@@ -70,6 +70,25 @@
   }
 }
 
+/* Campos transparentes em páginas de fundo escuro (Cadastro, Login, etc.) */
+.cadastro-page input,
+.cadastro-page select,
+.login-page input {
+  background: transparent !important;
+  color: #e6edf3 !important;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+.cadastro-page input::placeholder,
+.cadastro-page select,
+.login-page input::placeholder {
+  color: rgba(255, 255, 255, 0.5);
+}
+.cadastro-page select option,
+.login-page select option {
+  background: rgba(15, 1, 30, 0.98);
+  color: #e6edf3;
+}
+
 /* Login: inputs com foco no padrão da plataforma */
 .login-page .login-input:focus {
   border-color: var(--input-focus-border);

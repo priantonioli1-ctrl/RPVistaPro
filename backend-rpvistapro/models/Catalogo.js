@@ -10,6 +10,7 @@ const ItemCatalogoSchema = new mongoose.Schema(
     unidade: { type: String, trim: true, default: "" },
     similar: { type: Boolean, default: true },
     codigo: { type: String, trim: true, default: "" },
+    codigoBarras: { type: String, trim: true, default: "" },
   },
   { _id: false }
 );

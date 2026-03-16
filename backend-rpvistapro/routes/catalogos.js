@@ -116,6 +116,7 @@ router.put("/:compradorId", async (req, res) => {
       unidade: (item.unidade || "").toString().trim() || "",
       similar: item.similar !== false,
       codigo: (item.codigo || "").toString().trim() || "",
+      codigoBarras: (item.codigoBarras || "").toString().trim() || "",
     }));
 
     const empresaId = new mongoose.Types.ObjectId(compradorId);
